@@ -25,12 +25,16 @@
 
 ## Thông số phiên bản cá nhân
 
-- Giá trị cá nhân: **A = 4**, **B = 1**.
-- Kỳ hạn mặc định: **180 ngày**.
-- Lãi suất mặc định: **3%/năm**.
-- Phí rút trước hạn: **3,5%**.
-- Thời gian chờ trước tự động gia hạn: **3 ngày**.
-- MockUSDC sử dụng **6 chữ số thập phân**.
+Giá trị cá nhân: **A = 4**, **B = 1**.
+
+| Thông số | Công thức | Kết quả |
+|---|---|---:|
+| Grace period | `(A mod 3) + 2` ngày | **3 ngày** |
+| APR mặc định | `200 + A × 25` bps | **300 bps = 3%/năm** |
+| Phí rút sớm | `300 + B × 50` bps | **350 bps = 3,5%** |
+| Kỳ hạn mặc định | B lẻ: 180 ngày; B chẵn: 90 ngày | **180 ngày** |
+
+MockUSDC sử dụng **6 chữ số thập phân**.
 
 Bốn tham số cá nhân được khai báo trực tiếp trong `SavingCore.sol`: kỳ hạn `180 ngày`, APR `300 bps`, phí rút sớm `350 bps` và grace period `3 ngày`.
 
@@ -40,6 +44,22 @@ Bốn tham số cá nhân được khai báo trực tiếp trong `SavingCore.sol
 - React, TypeScript, Vite và MetaMask.
 - Hardhat Local: `http://127.0.0.1:8545`, chain ID `31337`.
 
+## Kiến trúc
+
+```text
+MetaMask + React frontend
+          │
+          ├── MockUSDC ───── token mô phỏng 6 decimals
+          │
+          ├── SavingCore ─── gói tiết kiệm, tiền gốc và NFT chứng chỉ
+          │          │
+          │          └────── yêu cầu trả lãi
+          │
+          └── VaultManager ─ quỹ trả lãi, phí và quyền quản trị
+```
+
+Tiền gốc của người dùng và quỹ trả lãi được giữ ở hai hợp đồng khác nhau. Frontend luôn đọc dữ liệu hiện tại từ blockchain local thay vì lưu số dư riêng.
+
 ## Cấu trúc chính
 
 ```text
@@ -47,6 +67,7 @@ contracts/       Ba smart contract chính
 scripts/         Deploy, dữ liệu mẫu và auto-renew
 test/            Các bài kiểm tra tự động
 frontend/        Giao diện React và MetaMask
+docs/            Hướng dẫn, Design Answers và tài liệu báo cáo
 deployments/     Địa chỉ hợp đồng của lần chạy local hiện tại
 ```
 
@@ -121,8 +142,8 @@ npx hardhat test --coverage
 
 Kết quả gần nhất:
 
-- **61/61 bài kiểm tra đạt**.
-- Coverage: **98,54% dòng lệnh**, **98,55% câu lệnh**.
+- **56/56 bài kiểm tra nghiệp vụ đạt**.
+- Coverage: **98,51% dòng lệnh**, **98,50% câu lệnh**.
 
 ### Frontend
 
@@ -144,7 +165,15 @@ Cả kiểm tra mã và build production hiện đều thành công. Cảnh báo
 6. Gia hạn thủ công do người dùng thực hiện; tự động gia hạn do script gọi sau thời gian chờ.
 7. Thời điểm đáo hạn được kiểm tra bằng thời gian của blockchain.
 
-Phần giải thích chi tiết kèm đoạn code thật nằm trong [`DESIGN_ANSWERS.md`](DESIGN_ANSWERS.md).
+Phần giải thích chi tiết kèm đoạn code thật nằm trong [`docs/submission/DESIGN_ANSWERS.md`](docs/submission/DESIGN_ANSWERS.md).
+
+## Tài liệu dự án
+
+- [Chỉ mục tài liệu](docs/README.md)
+- [Hướng dẫn chạy local](docs/guides/LOCAL_DEVELOPMENT.md)
+- [Design Answers](docs/submission/DESIGN_ANSWERS.md)
+- [Kịch bản video demo](docs/submission/DEMO_SCRIPT.md)
+- [Câu hỏi vấn đáp](docs/submission/VIVA_QUESTIONS.md)
 
 ## Lưu ý bảo mật
 
@@ -152,3 +181,11 @@ Phần giải thích chi tiết kèm đoạn code thật nằm trong [`DESIGN_AN
 - Không commit `.env`, private key, seed phrase hoặc thông tin đăng nhập.
 - Không sử dụng tài khoản MetaMask chính với dự án.
 - Địa chỉ trong `deployments/localhost.json` chỉ có giá trị với lần chạy local hiện tại.
+
+## Giới hạn hiện tại
+
+- Nếu vault thiếu tiền lãi, giao dịch rút khi đáo hạn sẽ bị hủy toàn bộ. Bonus C1 trả gốc trước và ghi nợ lãi chưa được triển khai.
+- Chưa có solvency guard C2 để khóa phần quỹ lãi đã cam kết; admin local vẫn có thể rút quỹ trong phạm vi số dư hiện có.
+- Auto-renew cần một script hoặc người bên ngoài gọi; chưa có dịch vụ bot chạy liên tục và chưa có phí khuyến khích người gọi.
+- Dữ liệu Hardhat Local bị xóa khi node dừng, vì vậy phải deploy và seed lại.
+- Frontend build thành công nhưng hiện vẫn có cảnh báo gói JavaScript lớn hơn 500 kB.

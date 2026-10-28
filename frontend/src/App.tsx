@@ -1,19 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowRight, BadgeCheck, Banknote, CalendarDays, CircleDollarSign, Coins, Copy, Landmark, LoaderCircle, Menu, Plus, RefreshCw, ShieldCheck, Sparkles, TrendingUp, Wallet, X } from 'lucide-react'
 import { BrowserProvider, Contract, formatUnits, parseUnits } from 'ethers'
-import type { InterfaceAbi } from 'ethers'
-import tokenJson from './abi/MockUSDC.json'
-import vaultJson from './abi/VaultManager.json'
-import coreJson from './abi/SavingCore.json'
+import { ADMIN_ADDRESS, CONTRACT_ADDRESSES, LOCAL_CHAIN_ID, LOCAL_RPC_URL } from './contracts/addresses'
+import { mockUsdcAbi, savingCoreAbi, vaultManagerAbi } from './contracts/abis'
+import type { Deposit, Plan } from './contracts/types'
 import './App.css'
 
-type Eth = { request:(v:{method:string;params?:unknown[]|object})=>Promise<unknown>; on?:(e:string,f:(...a:unknown[])=>void)=>void; removeListener?:(e:string,f:(...a:unknown[])=>void)=>void }
-declare global { interface Window { ethereum?: Eth } }
-type Plan={id:number;tenor:number;apr:number;min:bigint;max:bigint;penalty:number;enabled:boolean}
-type Deposit={id:number;planId:number;principal:bigint;start:number;maturity:number;tenor:number;apr:number;penalty:number;status:number;interest:bigint}
-const A={token:'0x5FbDB2315678afecb367f032d93F642f64180aa3',vault:'0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',core:'0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0'}
-const ADMIN='0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266', CHAIN=31337, DAY=86400
-const abi=(x:unknown)=>(x as {abi:InterfaceAbi}).abi
+const A=CONTRACT_ADDRESSES, ADMIN=ADMIN_ADDRESS, CHAIN=LOCAL_CHAIN_ID, DAY=86400
 const usd=(n:bigint,d=2)=>Number(formatUnits(n,6)).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d})
 const short=(x:string)=>`${x.slice(0,6)}…${x.slice(-4)}`
 const date=(n:number)=>new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric'}).format(new Date(n*1000))
@@ -26,10 +19,10 @@ function App(){
  const [admin,setAdmin]=useState({tenor:'90',apr:'4.5',min:'100',max:'10000',penalty:'2',fund:'1000'})
  const isAdmin=account.toLowerCase()===ADMIN, active=deposits.filter(d=>d.status===0), total=active.reduce((s,d)=>s+d.principal,0n), earnings=active.reduce((s,d)=>s+d.interest,0n)
  const selected=useMemo(()=>plans.find(p=>p.id===planId)??plans[0],[plans,planId])
- const contracts=useCallback(async(write=false)=>{if(!window.ethereum)throw Error('MetaMask is not installed');const provider=new BrowserProvider(window.ethereum),runner=write?await provider.getSigner():provider;return{provider,token:new Contract(A.token,abi(tokenJson),runner),vault:new Contract(A.vault,abi(vaultJson),runner),core:new Contract(A.core,abi(coreJson),runner)}},[])
+ const contracts=useCallback(async(write=false)=>{if(!window.ethereum)throw Error('MetaMask is not installed');const provider=new BrowserProvider(window.ethereum),runner=write?await provider.getSigner():provider;return{provider,token:new Contract(A.token,mockUsdcAbi,runner),vault:new Contract(A.vault,vaultManagerAbi,runner),core:new Contract(A.core,savingCoreAbi,runner)}},[])
  const note=(s:string)=>{setToast(s);setTimeout(()=>setToast(''),4500)}
  const refresh=useCallback(async(user=account)=>{if(!user)return;try{const{provider,token,vault,core}=await contracts();const net=await provider.getNetwork();if(Number(net.chainId)!==CHAIN){setOk(false);return}setOk(true);if(await provider.getCode(A.core)==='0x')throw Error('Contracts not found. Redeploy and seed after restarting the local node.');const block=await provider.getBlock('latest');if(block)setNow(block.timestamp);const[b,v,np,nd]=await Promise.all([token.balanceOf(user),vault.vaultBalance(),core.nextPlanId(),core.nextDepositId()]);setBalance(b);setVaultBalance(v);const ps=await Promise.all(Array.from({length:Number(np)-1},async(_,i)=>{const id=i+1,p=await core.plans(id);return{id,tenor:Number(p.tenorDays),apr:Number(p.aprBps),min:p.minDeposit,max:p.maxDeposit,penalty:Number(p.earlyWithdrawPenaltyBps),enabled:p.enabled}}));setPlans(ps);const ds=await Promise.all(Array.from({length:Number(nd)-1},async(_,i)=>{const id=i+1;try{if((await core.ownerOf(id)).toLowerCase()!==user.toLowerCase())return null;const d=await core.deposits(id);return{id,planId:Number(d.planId),principal:d.principal,start:Number(d.startAt),maturity:Number(d.maturityAt),tenor:Number(d.tenorDays),apr:Number(d.aprBpsAtOpen),penalty:Number(d.penaltyBpsAtOpen),status:Number(d.status),interest:await core.calculateInterest(id)}as Deposit}catch{return null}}));setDeposits(ds.filter((d):d is Deposit=>d!==null).reverse())}catch(e){note(e instanceof Error?e.message:'Could not load data')}},[account,contracts])
- const connect=async()=>{setBusy(true);try{if(!window.ethereum)throw Error('Install MetaMask to continue');try{await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:'0x7a69'}]})}catch{await window.ethereum.request({method:'wallet_addEthereumChain',params:[{chainId:'0x7a69',chainName:'Hardhat Local',rpcUrls:['http://127.0.0.1:8545'],nativeCurrency:{name:'ETH',symbol:'ETH',decimals:18}}]})}const xs=await window.ethereum.request({method:'eth_requestAccounts'})as string[];setAccount(xs[0]);await refresh(xs[0])}catch(e){note(e instanceof Error?e.message:'Connection failed')}finally{setBusy(false)}}
+ const connect=async()=>{setBusy(true);try{if(!window.ethereum)throw Error('Install MetaMask to continue');try{await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:'0x7a69'}]})}catch{await window.ethereum.request({method:'wallet_addEthereumChain',params:[{chainId:'0x7a69',chainName:'Hardhat Local',rpcUrls:[LOCAL_RPC_URL],nativeCurrency:{name:'ETH',symbol:'ETH',decimals:18}}]})}const xs=await window.ethereum.request({method:'eth_requestAccounts'})as string[];setAccount(xs[0]);await refresh(xs[0])}catch(e){note(e instanceof Error?e.message:'Connection failed')}finally{setBusy(false)}}
  useEffect(()=>{if(!window.ethereum)return;const onAccounts=(...a:unknown[])=>{const x=(a[0]as string[])?.[0]??'';setAccount(x);if(x)void refresh(x)},onChain=()=>{if(account)void refresh(account)};window.ethereum.on?.('accountsChanged',onAccounts);window.ethereum.on?.('chainChanged',onChain);void window.ethereum.request({method:'eth_accounts'}).then(v=>{const x=(v as string[])[0];if(x){setAccount(x);void refresh(x)}});return()=>{window.ethereum?.removeListener?.('accountsChanged',onAccounts);window.ethereum?.removeListener?.('chainChanged',onChain)}},[account,refresh])
  const tx=async(label:string,fn:()=>Promise<{hash:string;wait:()=>Promise<unknown>}> )=>{setBusy(true);setTxHash('');try{const t=await fn();await t.wait();setTxHash(t.hash);note(`${label} completed`);setModal(null);await refresh()}catch(e){note(e instanceof Error?e.message.replace('execution reverted: ',''):`${label} failed`)}finally{setBusy(false)}}
  const open=()=>tx('Deposit',async()=>{const value=parseUnits(amount||'0',6),{token,core}=await contracts(true);if(await token.allowance(account,A.core)<value)await(await token.approve(A.core,value)).wait();return core.openDeposit(planId,value)})

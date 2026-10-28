@@ -1,75 +1,46 @@
-# React + TypeScript + Vite
+# Novabank frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Giao diện React + TypeScript dùng MetaMask và ethers.js để tương tác với ba smart contract của Online Banking System trên Hardhat Local.
 
-Currently, two official plugins are available:
+## Cấu trúc
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```text
+src/
+├── contracts/
+│   ├── abis/          ABI của MockUSDC, VaultManager và SavingCore
+│   ├── addresses.ts   Chain, RPC và địa chỉ hợp đồng
+│   └── types.ts       Kiểu dữ liệu dùng trong giao diện
+├── App.tsx            Dashboard và các luồng người dùng/admin
+├── App.css            Giao diện trang chính
+├── index.css          Thiết lập CSS toàn cục
+└── main.tsx           Điểm khởi chạy React
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+## Chạy frontend
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Blockchain local, deploy và seed phải chạy trước.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```powershell
+npm ci
+npm run dev
 ```
+
+## Cấu hình địa chỉ
+
+Các địa chỉ mặc định của Hardhat được đặt trong `src/contracts/addresses.ts`. Nếu lần deploy tạo địa chỉ khác:
+
+```powershell
+Copy-Item .env.example .env.local
+```
+
+Sau đó cập nhật các biến `VITE_*` trong `.env.local`. File `.env.local` không được commit.
+
+## Kiểm tra
+
+```powershell
+npm run lint
+npm run build
+```
+
+Frontend chỉ dành cho mạng local chain ID `31337`. Không kết nối ví có tài sản thật.
+

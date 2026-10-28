@@ -20,7 +20,7 @@ cd frontend
 npm run dev
 ```
 
-Hardhat's local chain is ephemeral. Every time the node restarts, run both the deploy and seed commands again. Deployment writes the current addresses to `deployments/localhost.json`; if those addresses ever change, update the frontend address constants in `frontend/src/App.tsx`.
+Hardhat's local chain is ephemeral. Every time the node restarts, run both the deploy and seed commands again. Deployment writes the current addresses to `deployments/localhost.json`. The default Hardhat addresses are declared in `frontend/src/contracts/addresses.ts`; if addresses change, copy `frontend/.env.example` to `frontend/.env.local` and update the four `VITE_*` values.
 
 Connect MetaMask to `http://127.0.0.1:8545` (chain ID `31337`). Only use accounts printed by the local Hardhat node. Never commit wallet seed phrases, private keys, `.env` files, or production credentials.
 

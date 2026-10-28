@@ -6,7 +6,7 @@ Tài liệu này trả lời bảy quyết định thiết kế bằng chính c�
 
 Người đang sở hữu NFT của khoản gửi là người có quyền thao tác. Vì NFT có thể được chuyển sang ví khác, hợp đồng kiểm tra chủ sở hữu hiện tại thay vì chỉ nhớ người tạo ban đầu.
 
-Code thật tại [`contracts/SavingCore.sol`](contracts/SavingCore.sol#L147):
+Code thật tại [`contracts/SavingCore.sol`](../../contracts/SavingCore.sol#L147):
 
 ```solidity
 modifier onlyCertificateOwner(uint256 depositId) {
@@ -18,13 +18,13 @@ modifier onlyCertificateOwner(uint256 depositId) {
 }
 ```
 
-Các hàm rút và manual renew đều dùng `onlyCertificateOwner`. Bài test chuyển NFT cho người khác rồi rút tiền nằm trong [`test/SavingCore.test.ts`](test/SavingCore.test.ts).
+Các hàm rút và manual renew đều dùng `onlyCertificateOwner`. Bài test chuyển NFT cho người khác rồi rút tiền nằm trong [`test/SavingCore.test.ts`](../../test/SavingCore.test.ts).
 
 ## 2. Điều kiện của khoản gửi có bị thay đổi khi admin sửa gói không?
 
 Không. Khi mở khoản gửi, hệ thống lưu lại kỳ hạn, APR và phí rút sớm vào chính deposit. Vì vậy, việc admin sửa gói chỉ áp dụng cho các khoản gửi mới.
 
-Code thật tại [`contracts/SavingCore.sol`](contracts/SavingCore.sol#L280):
+Code thật tại [`contracts/SavingCore.sol`](../../contracts/SavingCore.sol#L280):
 
 ```solidity
 deposits[depositId] = Deposit({
@@ -43,7 +43,7 @@ deposits[depositId] = Deposit({
 
 Tiền gốc của người dùng được chuyển vào `SavingCore`. Quỹ dùng để trả lãi được nạp riêng vào `VaultManager`. Khi đáo hạn, tiền lãi đi từ vault còn tiền gốc đi từ core.
 
-Code thật tại [`contracts/SavingCore.sol`](contracts/SavingCore.sol#L344):
+Code thật tại [`contracts/SavingCore.sol`](../../contracts/SavingCore.sol#L344):
 
 ```solidity
 dep.status = DepositStatus.Withdrawn;
@@ -57,7 +57,7 @@ Cách tách này giúp không nhầm tiền gốc của khách hàng với quỹ
 
 `VaultManager` kiểm tra số dư trước khi trả. Nếu không đủ, giao dịch bị hủy. Vì giao dịch blockchain có tính nguyên tử, trạng thái deposit cũng quay lại như trước và người dùng có thể thực hiện lại sau khi admin nạp thêm quỹ.
 
-Code thật tại [`contracts/VaultManager.sol`](contracts/VaultManager.sol#L94):
+Code thật tại [`contracts/VaultManager.sol`](../../contracts/VaultManager.sol#L94):
 
 ```solidity
 function payInterest(address receiver, uint256 amount)
@@ -78,7 +78,7 @@ function payInterest(address receiver, uint256 amount)
 
 APR và phí được lưu theo basis point: `10.000 bps = 100%`. Phép tính dùng số nguyên và MockUSDC có 6 chữ số thập phân, vì vậy kết quả được làm tròn xuống ở phần nhỏ nhất của token.
 
-Code tính lãi tại [`contracts/SavingCore.sol`](contracts/SavingCore.sol#L310):
+Code tính lãi tại [`contracts/SavingCore.sol`](../../contracts/SavingCore.sol#L310):
 
 ```solidity
 return (
@@ -89,7 +89,7 @@ return (
 ) / (YEAR_SECONDS * BPS_DENOMINATOR);
 ```
 
-Code tính phí rút sớm tại [`contracts/SavingCore.sol`](contracts/SavingCore.sol#L376):
+Code tính phí rút sớm tại [`contracts/SavingCore.sol`](../../contracts/SavingCore.sol#L376):
 
 ```solidity
 uint256 penalty = (
@@ -101,7 +101,7 @@ uint256 penalty = (
 
 Manual renew do chủ NFT gọi từ khi đáo hạn đến trước khi hết 3 ngày. Khoản mới dùng điều kiện hiện tại của gói được chọn. Auto-renew có thể được script gọi từ đúng thời điểm hết 3 ngày và giữ lại điều kiện đã chốt của khoản cũ.
 
-Ranh giới manual renew tại [`contracts/SavingCore.sol`](contracts/SavingCore.sol#L418):
+Ranh giới manual renew tại [`contracts/SavingCore.sol`](../../contracts/SavingCore.sol#L418):
 
 ```solidity
 require(block.timestamp >= oldDeposit.maturityAt, "Not matured");
@@ -111,7 +111,7 @@ require(
 );
 ```
 
-Ranh giới auto-renew tại [`contracts/SavingCore.sol`](contracts/SavingCore.sol#L482):
+Ranh giới auto-renew tại [`contracts/SavingCore.sol`](../../contracts/SavingCore.sol#L482):
 
 ```solidity
 require(
@@ -120,13 +120,13 @@ require(
 );
 ```
 
-Script tự động quét các khoản đủ điều kiện nằm tại [`scripts/auto-renew.ts`](scripts/auto-renew.ts#L64).
+Script tự động quét các khoản đủ điều kiện nằm tại [`scripts/auto-renew.ts`](../../scripts/auto-renew.ts#L64).
 
 ## 7. Làm sao tránh rút hai lần và hạn chế giao dịch gọi lặp nguy hiểm?
 
 Mỗi deposit có trạng thái. Chỉ deposit ở trạng thái `Active` mới được xử lý. Trạng thái được đổi trước khi chuyển token. Ngoài ra các hàm chuyển tiền dùng `nonReentrant` để ngăn một hợp đồng bên ngoài gọi lặp vào giữa giao dịch.
 
-Code kiểm tra trạng thái tại [`contracts/SavingCore.sol`](contracts/SavingCore.sol#L155):
+Code kiểm tra trạng thái tại [`contracts/SavingCore.sol`](../../contracts/SavingCore.sol#L155):
 
 ```solidity
 modifier onlyActiveDeposit(uint256 depositId) {
