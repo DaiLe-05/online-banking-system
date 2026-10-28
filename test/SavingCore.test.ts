@@ -181,6 +181,16 @@ describe("SavingCore", function () {
     ).to.revert(ethers);
   });
 
+  it("Should let an existing deposit withdraw after its plan is disabled", async function () {
+    const { core, alice } =
+      await networkHelpers.loadFixture(openedDepositFixture);
+
+    await core.disablePlan(1n);
+    await core.connect(alice).earlyWithdraw(1n);
+
+    expect((await core.deposits(1n)).status).to.equal(1n);
+  });
+
   it("Should reject deposits below min and above max", async function () {
     const { core, alice } = await networkHelpers.loadFixture(deployFixture);
 
@@ -219,6 +229,31 @@ describe("SavingCore", function () {
 
     expect(await core.calculateInterest(1n)).to.equal(expected);
     expect(expected).to.equal(14794520n);
+  });
+
+  it("Should round interest down and leave rounding dust in the vault", async function () {
+    const { core, vault, alice } =
+      await networkHelpers.loadFixture(deployFixture);
+
+    const principal = 1_000_001n;
+    const aprBps = 333n;
+    const tenorDays = 7n;
+    const denominator = BigInt(365 * DAY) * 10_000n;
+    const numerator = principal * aprBps * tenorDays * BigInt(DAY);
+
+    await core.createPlan(tenorDays, aprBps, 0n, 0n, 0n);
+    await core.connect(alice).openDeposit(2n, principal);
+
+    const expectedInterest = numerator / denominator;
+    expect(numerator % denominator).to.not.equal(0n);
+    expect(await core.calculateInterest(1n)).to.equal(expectedInterest);
+
+    const vaultBefore = await vault.vaultBalance();
+    await reachMaturity(core);
+    await core.connect(alice).withdrawAtMaturity(1n);
+
+    expect(await vault.vaultBalance())
+      .to.equal(vaultBefore - expectedInterest);
   });
 
   it("Should reject maturity withdrawal before maturity", async function () {
@@ -299,6 +334,23 @@ describe("SavingCore", function () {
     expect((await core.deposits(1n)).status).to.equal(1n);
   });
 
+  it("Should return all principal when early penalty is zero", async function () {
+    const { core, token, alice, feeReceiver } =
+      await networkHelpers.loadFixture(deployFixture);
+
+    await core.createPlan(30n, 300n, 0n, 0n, 0n);
+    await core.connect(alice).openDeposit(2n, USDC("1000"));
+
+    const userBefore = await token.balanceOf(alice.address);
+    const feeBefore = await token.balanceOf(feeReceiver.address);
+
+    await core.connect(alice).earlyWithdraw(1n);
+
+    expect(await token.balanceOf(alice.address))
+      .to.equal(userBefore + USDC("1000"));
+    expect(await token.balanceOf(feeReceiver.address)).to.equal(feeBefore);
+  });
+
   it("Should allow current NFT owner to withdraw", async function () {
     const { core, token, alice, bob } =
       await networkHelpers.loadFixture(openedDepositFixture);
@@ -340,6 +392,18 @@ describe("SavingCore", function () {
 
     expect(await token.balanceOf(await core.getAddress()))
       .to.equal(USDC("1000") + interest);
+  });
+
+  it("Should reject manual renewal into a disabled plan", async function () {
+    const { core, alice } =
+      await networkHelpers.loadFixture(openedDepositFixture);
+
+    await core.disablePlan(1n);
+    await reachMaturity(core);
+
+    await expect(
+      core.connect(alice).renewDeposit(1n, 1n)
+    ).to.revert(ethers);
   });
 
   it("Should use current plan APR for manual renew", async function () {

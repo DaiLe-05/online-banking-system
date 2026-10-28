@@ -164,6 +164,8 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
     // ADMIN: SAVING PLANS
     // ------------------------------------------------------------
 
+    /// @notice Creates and enables a new savings plan.
+    /// @dev A maxDeposit of zero means that the plan has no upper limit.
     function createPlan(
         uint256 tenorDays,
         uint256 aprBps,
@@ -195,6 +197,8 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
         return planId;
     }
 
+    /// @notice Updates the APR used by future deposits in an existing plan.
+    /// @dev Existing deposits keep the APR snapshot taken when they opened.
     function updatePlan(
         uint256 planId,
         uint256 newAprBps
@@ -207,10 +211,13 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
         emit PlanUpdated(planId, newAprBps);
     }
 
+    /// @notice Allows new deposits and manual renewals into a plan.
     function enablePlan(uint256 planId) external onlyOwner {
         _setPlanEnabled(planId, true);
     }
 
+    /// @notice Stops new deposits and manual renewals into a plan.
+    /// @dev Existing certificates keep their snapshotted terms and remain withdrawable.
     function disablePlan(uint256 planId) external onlyOwner {
         _setPlanEnabled(planId, false);
     }
@@ -238,6 +245,8 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
     // OPEN DEPOSIT
     // ------------------------------------------------------------
 
+    /// @notice Opens a fixed-term deposit and mints its certificate NFT.
+    /// @return The newly minted deposit and certificate identifier.
     function openDeposit(
         uint256 planId,
         uint256 amount
@@ -306,6 +315,7 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
     // INTEREST
     // ------------------------------------------------------------
 
+    /// @notice Returns the fixed interest for a deposit, rounded down to token units.
     function calculateInterest(uint256 depositId)
         public
         view
@@ -327,6 +337,7 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
     // WITHDRAW AT MATURITY
     // ------------------------------------------------------------
 
+    /// @notice Pays principal and interest to the current NFT owner at or after maturity.
     function withdrawAtMaturity(uint256 depositId)
         external
         nonReentrant
@@ -362,6 +373,7 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
     // EARLY WITHDRAWAL
     // ------------------------------------------------------------
 
+    /// @notice Returns principal before maturity after sending the penalty to the fee receiver.
     function earlyWithdraw(uint256 depositId)
         external
         nonReentrant
@@ -402,6 +414,8 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
     // MANUAL RENEW
     // ------------------------------------------------------------
 
+    /// @notice Manually renews a matured deposit during its grace period.
+    /// @return The identifier of the replacement certificate.
     function renewDeposit(
         uint256 depositId,
         uint256 newPlanId
@@ -471,6 +485,9 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
     // AUTO RENEW
     // ------------------------------------------------------------
 
+    /// @notice Permissionlessly renews an active deposit after its grace period.
+    /// @dev The replacement keeps the original snapshotted terms and starts at call time.
+    /// @return The identifier of the replacement certificate.
     function autoRenewDeposit(uint256 depositId)
         external
         nonReentrant

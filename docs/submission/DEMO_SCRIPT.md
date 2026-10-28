@@ -70,12 +70,12 @@ Lời nói:
 Thao tác:
 
 1. Chuyển sang VS Code.
-2. Cho xem kết quả `56 passing`.
-3. Cho xem coverage `98,51%`.
+2. Cho xem kết quả `60 passing`.
+3. Cho xem coverage `98,60%`.
 
 Lời nói:
 
-> Em đã kiểm tra các trường hợp bình thường và các trường hợp lỗi như rút hai lần, sai chủ sở hữu, chưa đến hạn, quỹ thiếu tiền và hệ thống bị tạm dừng. Hiện tại 56 trên 56 bài kiểm tra nghiệp vụ đều đạt. Độ bao phủ mã nguồn khoảng 98,51%, cao hơn mục tiêu 90%.
+> Em đã kiểm tra các trường hợp bình thường và các trường hợp lỗi như rút hai lần, sai chủ sở hữu, chưa đến hạn, quỹ thiếu tiền, gói bị tắt và hệ thống bị tạm dừng. Hiện tại 60 trên 60 bài kiểm tra nghiệp vụ đều đạt. Độ bao phủ dòng lệnh là 98,60%, cao hơn mục tiêu 90%.
 
 ## 4:20–4:40 — Kết luận
 

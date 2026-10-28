@@ -42,7 +42,7 @@
 
 ## 11. Em đã kiểm tra dự án như thế nào?
 
-> Em có 56 bài kiểm tra cho token, khoản gửi, quỹ trả lãi và các trường hợp lỗi. Tất cả đều đạt. Độ bao phủ mã nguồn khoảng 98,51%.
+> Em có 60 bài kiểm tra cho token, khoản gửi, quỹ trả lãi và các trường hợp lỗi. Tất cả đều đạt. Độ bao phủ dòng lệnh là 98,60%.
 
 ## 12. Nếu tắt Hardhat node thì chuyện gì xảy ra?
 

@@ -142,8 +142,8 @@ npx hardhat test --coverage
 
 Kết quả gần nhất:
 
-- **56/56 bài kiểm tra nghiệp vụ đạt**.
-- Coverage: **98,51% dòng lệnh**, **98,50% câu lệnh**.
+- **60/60 bài kiểm tra nghiệp vụ đạt**.
+- Coverage: **98,60% dòng lệnh**, **98,50% câu lệnh**.
 
 ### Frontend
 
@@ -155,17 +155,37 @@ npm run build
 
 Cả kiểm tra mã và build production hiện đều thành công. Cảnh báo gói JavaScript lớn hơn 500 kB không làm build thất bại.
 
-## Các quyết định thiết kế chính
+## Design Answers
 
-1. Người đang sở hữu chứng chỉ NFT là người được thao tác với khoản gửi.
-2. Lãi suất và phí được lưu lại lúc mở khoản gửi nên không bị thay đổi về sau.
-3. Tiền gốc được giữ trong `SavingCore`; quỹ trả lãi được giữ trong `VaultManager`.
-4. Nếu quỹ lãi không đủ, giao dịch bị hủy và trạng thái không thay đổi.
-5. Chỉ khoản gửi đang hoạt động mới được rút hoặc gia hạn, tránh xử lý hai lần.
-6. Gia hạn thủ công do người dùng thực hiện; tự động gia hạn do script gọi sau thời gian chờ.
-7. Thời điểm đáo hạn được kiểm tra bằng thời gian của blockchain.
+### 1. Nếu Alice chuyển NFT chứng chỉ cho Bob, ai được rút tiền?
 
-Phần giải thích chi tiết kèm đoạn code thật nằm trong [`docs/submission/DESIGN_ANSWERS.md`](docs/submission/DESIGN_ANSWERS.md).
+Bob là người được rút vì các hàm rút và gia hạn kiểm tra `ownerOf(depositId) == msg.sender` trong modifier `onlyCertificateOwner` của [`SavingCore.sol`](contracts/SavingCore.sol). Thiết kế này hữu ích vì chứng chỉ tiết kiệm có thể chuyển nhượng và quyền nhận tiền đi cùng NFT. Tuy nhiên, nó cũng nguy hiểm nếu người mua không kiểm tra trạng thái, ngày đáo hạn và điều kiện của chứng chỉ trước khi nhận. Bài test `Should allow current NFT owner to withdraw` chứng minh Alice không còn quyền và Bob rút được sau khi nhận NFT.
+
+### 2. Điều gì xảy ra nếu quỹ lãi không đủ tiền?
+
+`VaultManager.payInterest` sẽ revert với lỗi `Insufficient vault`, vì vậy thao tác rút khi đáo hạn hoặc gia hạn không hoàn thành. Do giao dịch có tính nguyên tử, trạng thái deposit và số dư tiền gốc đều quay về như trước, nên người dùng không bị mất tiền nhưng phải chờ admin nạp thêm quỹ. Một phương án khác là trả tiền gốc ngay và ghi nhận phần lãi còn nợ để nhận sau. Dự án chọn cách hủy toàn bộ giao dịch vì đơn giản, dễ kiểm tra và đúng yêu cầu cơ bản; phương án ghi nợ lãi được ghi nhận là bonus C1 chưa triển khai.
+
+### 3. Nếu bot auto-renew ngừng chạy một tháng thì sao?
+
+Khoản gửi vẫn ở trạng thái `Active`; người dùng vẫn có thể rút gốc và lãi bằng `withdrawAtMaturity`, nên không mất tiền. Trong thời gian bot ngừng, hệ thống không tự tạo kỳ hạn mới và người dùng không nhận thêm lợi suất cho tháng chậm đó. Khi có người gọi `autoRenewDeposit`, khoản mới bắt đầu tại `block.timestamp` hiện tại chứ không được tính lùi về ngày đáo hạn cũ. Một cải tiến phù hợp là cho khoản mới bắt đầu từ mốc đáo hạn cũ, hoặc vận hành keeper dự phòng có cơ chế khuyến khích người gọi.
+
+### 4. Phần lẻ do phép chia số nguyên được xử lý thế nào?
+
+Solidity chia số nguyên theo hướng làm tròn xuống, nên phần nhỏ hơn đơn vị thấp nhất của mUSDC không được trả và vẫn nằm trong vault. Phần lẻ này không làm sai số dư và không tự gây revert; giao dịch chỉ revert khi vault không đủ số tiền lãi đã được làm tròn. Với khoản rất nhỏ, lãi có thể làm tròn thành 0 nhưng tiền gốc vẫn xử lý bình thường. Test `Should round interest down and leave rounding dust in the vault` kiểm tra cả số lãi làm tròn và số dư còn lại của vault.
+
+### 5. Đúng thời điểm đáo hạn và đúng cuối grace period thuộc nhánh nào?
+
+Rút sớm chỉ hợp lệ khi `block.timestamp < maturityAt`, còn rút đáo hạn hợp lệ khi `block.timestamp >= maturityAt`; vì vậy đúng giây đáo hạn thuộc nhánh đáo hạn. Gia hạn thủ công dùng khoảng `maturityAt <= time < maturityAt + GRACE_PERIOD`. Auto-renew dùng `time >= maturityAt + GRACE_PERIOD`. Vì vậy đúng giây cuối grace period thì manual renew bị từ chối và auto-renew bắt đầu hợp lệ; các ranh giới này đều có test tự động.
+
+### 6. Nếu admin tắt một gói đang có khoản gửi hoạt động thì sao?
+
+Tắt gói chỉ chặn việc mở khoản gửi mới và chặn manual renew vào gói đó. Các khoản gửi đã mở vẫn giữ điều kiện đã chốt và vẫn được rút sớm hoặc rút khi đáo hạn. Auto-renew vẫn có thể dùng lại bản chụp điều kiện cũ vì hàm này không đọc trạng thái `enabled` hiện tại của gói. Các test `Should let an existing deposit withdraw after its plan is disabled` và `Should reject manual renewal into a disabled plan` chứng minh hành vi này.
+
+### 7. Một cách tấn công và cơ chế ngăn chặn chính xác là gì?
+
+Kẻ tấn công có thể thử gọi rút hai lần hoặc dùng callback của token để gọi lặp hàm rút trước khi giao dịch đầu kết thúc. Modifier `onlyActiveDeposit` chỉ cho phép deposit ở trạng thái `Active`, và hàm đổi trạng thái sang `Withdrawn` trước khi gọi chuyển token. `nonReentrant` chặn việc quay lại hàm trong lúc giao dịch đang chạy, còn `SafeERC20` giúp gọi token an toàn. Các test rút hai lần và gọi khi trạng thái không còn hoạt động xác nhận giao dịch thứ hai bị từ chối.
+
+Phiên bản trình bày chi tiết kèm đoạn code thật nằm trong [`docs/submission/DESIGN_ANSWERS.md`](docs/submission/DESIGN_ANSWERS.md).
 
 ## Tài liệu dự án
 
@@ -174,6 +194,7 @@ Phần giải thích chi tiết kèm đoạn code thật nằm trong [`docs/subm
 - [Design Answers](docs/submission/DESIGN_ANSWERS.md)
 - [Kịch bản video demo](docs/submission/DEMO_SCRIPT.md)
 - [Câu hỏi vấn đáp](docs/submission/VIVA_QUESTIONS.md)
+- [Checklist nộp bài](docs/submission/SUBMISSION_CHECKLIST.md)
 
 ## Lưu ý bảo mật
 

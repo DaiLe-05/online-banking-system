@@ -2,6 +2,8 @@
 
 Tài liệu này trả lời bảy quyết định thiết kế bằng chính cách dự án đã triển khai. Phiên bản cá nhân sử dụng **A = 4**, **B = 1** với bốn tham số: kỳ hạn **180 ngày**, APR **300 bps (3%)**, phí rút trước hạn **350 bps (3,5%)** và thời gian chờ **3 ngày**.
 
+> Bảy câu trả lời đúng theo câu hỏi của đề được đặt trực tiếp trong mục **Design Answers** của [`README.md`](../../README.md). Phần dưới đây là giải thích kỹ thuật bổ sung và các đoạn code làm bằng chứng.
+
 ## 1. Ai có quyền rút hoặc gia hạn một khoản gửi?
 
 Người đang sở hữu NFT của khoản gửi là người có quyền thao tác. Vì NFT có thể được chuyển sang ví khác, hợp đồng kiểm tra chủ sở hữu hiện tại thay vì chỉ nhớ người tạo ban đầu.
