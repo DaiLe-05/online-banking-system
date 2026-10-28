@@ -12,7 +12,9 @@
 - Xem tiền gốc, lãi dự kiến, ngày đáo hạn và trạng thái.
 - Rút trước hạn và tự động trừ phí.
 - Rút tiền gốc cùng tiền lãi khi đến hạn.
+- Luôn nhận lại tiền gốc khi đáo hạn; lãi thiếu được ghi nhận để nhận sau.
 - Gia hạn thủ công hoặc tự động gia hạn.
+- Xem và nhận phần lãi đang chờ thanh toán.
 - Xem và sao chép mã giao dịch sau khi thao tác thành công.
 
 ### Quản trị viên
@@ -20,6 +22,7 @@
 - Tạo, bật và tắt gói tiết kiệm.
 - Thiết lập kỳ hạn, lãi suất, giới hạn tiền gửi và phí rút sớm.
 - Nạp hoặc rút tiền từ quỹ trả lãi.
+- Chỉ rút phần quỹ chưa được cam kết cho các khoản gửi.
 - Thay đổi địa chỉ nhận phí.
 - Tạm dừng và mở lại hệ thống.
 
@@ -142,8 +145,8 @@ npx hardhat test --coverage
 
 Kết quả gần nhất:
 
-- **60/60 bài kiểm tra nghiệp vụ đạt**.
-- Coverage: **98,60% dòng lệnh**, **98,50% câu lệnh**.
+- **64/64 bài kiểm tra nghiệp vụ đạt**.
+- Coverage: **98,80% dòng lệnh**, **98,81% câu lệnh**.
 
 ### Frontend
 
@@ -163,7 +166,7 @@ Bob là người được rút vì các hàm rút và gia hạn kiểm tra `owne
 
 ### 2. Điều gì xảy ra nếu quỹ lãi không đủ tiền?
 
-`VaultManager.payInterest` sẽ revert với lỗi `Insufficient vault`, vì vậy thao tác rút khi đáo hạn hoặc gia hạn không hoàn thành. Do giao dịch có tính nguyên tử, trạng thái deposit và số dư tiền gốc đều quay về như trước, nên người dùng không bị mất tiền nhưng phải chờ admin nạp thêm quỹ. Một phương án khác là trả tiền gốc ngay và ghi nhận phần lãi còn nợ để nhận sau. Dự án chọn cách hủy toàn bộ giao dịch vì đơn giản, dễ kiểm tra và đúng yêu cầu cơ bản; phương án ghi nợ lãi được ghi nhận là bonus C1 chưa triển khai.
+Tại ngày đáo hạn, `SavingCore` luôn trả tiền gốc từ hợp đồng chính và yêu cầu vault trả phần lãi đang có. Nếu vault thiếu, phần lãi chưa trả được ghi vào `pendingInterest` của người dùng thay vì khóa tiền gốc. Sau khi admin nạp lại quỹ, người dùng gọi `claimPendingInterest` để nhận toàn bộ hoặc một phần lãi còn nợ. Đánh đổi của C1 là hợp đồng phải lưu thêm công nợ và người dùng có thể cần thực hiện thêm một giao dịch nhận lãi.
 
 ### 3. Nếu bot auto-renew ngừng chạy một tháng thì sao?
 
@@ -187,6 +190,16 @@ Kẻ tấn công có thể thử gọi rút hai lần hoặc dùng callback củ
 
 Phiên bản trình bày chi tiết kèm đoạn code thật nằm trong [`docs/submission/DESIGN_ANSWERS.md`](docs/submission/DESIGN_ANSWERS.md).
 
+## Bonus đã triển khai
+
+### C1 — Principal is always safe
+
+**Vấn đề:** quy tắc cơ bản làm toàn bộ giao dịch revert khi vault thiếu lãi, có thể khiến tiền gốc của người dùng bị khóa. **Giải pháp:** khi đáo hạn, hệ thống trả gốc ngay, trả phần lãi vault đang có và ghi phần còn thiếu vào `pendingInterest`; người dùng nhận lại bằng `claimPendingInterest` sau khi vault được nạp. **Đánh đổi:** tăng trạng thái công nợ, thêm event và có thể cần một giao dịch claim riêng. Test `Should return principal and defer interest when vault is empty` kiểm tra đầy đủ luồng rút gốc, ghi nợ, nạp quỹ và nhận lãi.
+
+### C2 — Solvency guard
+
+**Vấn đề:** nếu admin được rút toàn bộ vault, khoản lãi đã hứa cho deposit đang hoạt động có thể trở thành không thanh toán được. **Giải pháp:** vault theo dõi `totalInterestOwed`; mỗi deposit mới giữ chỗ phần lãi, rút sớm giải phóng phần giữ chỗ, còn trả lãi làm giảm công nợ. `withdrawVault` chỉ cho rút `availableLiquidity = max(vaultBalance - totalInterestOwed, 0)`. **Đánh đổi:** admin có ít thanh khoản tự do hơn và mọi đường xử lý deposit phải cập nhật số lãi cam kết chính xác; các test reservation, release và giới hạn rút bảo vệ tính nhất quán.
+
 ## Tài liệu dự án
 
 - [Chỉ mục tài liệu](docs/README.md)
@@ -205,8 +218,8 @@ Phiên bản trình bày chi tiết kèm đoạn code thật nằm trong [`docs/
 
 ## Giới hạn hiện tại
 
-- Nếu vault thiếu tiền lãi, giao dịch rút khi đáo hạn sẽ bị hủy toàn bộ. Bonus C1 trả gốc trước và ghi nợ lãi chưa được triển khai.
-- Chưa có solvency guard C2 để khóa phần quỹ lãi đã cam kết; admin local vẫn có thể rút quỹ trong phạm vi số dư hiện có.
+- C1 bảo vệ tiền gốc nhưng phần lãi còn thiếu vẫn phụ thuộc vào việc vault được nạp thêm.
+- C2 ngăn admin rút phần lãi đã cam kết, nhưng không bắt buộc vault phải có đủ 100% tiền ngay lúc mở deposit; nếu tổng cam kết lớn hơn số dư, thanh khoản an toàn của admin bằng 0.
 - Auto-renew cần một script hoặc người bên ngoài gọi; chưa có dịch vụ bot chạy liên tục và chưa có phí khuyến khích người gọi.
 - Dữ liệu Hardhat Local bị xóa khi node dừng, vì vậy phải deploy và seed lại.
 - Frontend build thành công nhưng hiện vẫn có cảnh báo gói JavaScript lớn hơn 500 kB.

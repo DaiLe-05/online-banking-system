@@ -49,7 +49,8 @@ Code thật tại [`contracts/SavingCore.sol`](../../contracts/SavingCore.sol#L3
 
 ```solidity
 dep.status = DepositStatus.Withdrawn;
-vault.payInterest(msg.sender, interest);
+uint256 paidInterest = vault.payAvailableInterest(msg.sender, interest);
+pendingInterest[msg.sender] += interest - paidInterest;
 token.safeTransfer(msg.sender, principal);
 ```
 
@@ -57,23 +58,15 @@ Cách tách này giúp không nhầm tiền gốc của khách hàng với quỹ
 
 ## 4. Nếu quỹ không đủ tiền trả lãi thì xử lý thế nào?
 
-`VaultManager` kiểm tra số dư trước khi trả. Nếu không đủ, giao dịch bị hủy. Vì giao dịch blockchain có tính nguyên tử, trạng thái deposit cũng quay lại như trước và người dùng có thể thực hiện lại sau khi admin nạp thêm quỹ.
+Bonus C1 bảo đảm tiền gốc luôn được trả tại ngày đáo hạn. Vault trả phần lãi đang có; phần thiếu được lưu trong `pendingInterest` của chủ NFT để nhận sau bằng `claimPendingInterest`. Bonus C2 đồng thời giữ `totalInterestOwed`, vì vậy khoản chưa trả vẫn được xem là tiền đã cam kết và admin không thể rút phần quỹ tương ứng sau khi nạp lại.
 
 Code thật tại [`contracts/VaultManager.sol`](../../contracts/VaultManager.sol#L94):
 
 ```solidity
-function payInterest(address receiver, uint256 amount)
-    external
-    onlySavingCore
-    whenNotPaused
-    nonReentrant
-{
-    require(amount <= token.balanceOf(address(this)), "Insufficient vault");
-
-    if (amount > 0) {
-        token.safeTransfer(receiver, amount);
-    }
-}
+uint256 paidInterest = vault.payAvailableInterest(msg.sender, interest);
+uint256 deferredInterest = interest - paidInterest;
+pendingInterest[msg.sender] += deferredInterest;
+token.safeTransfer(msg.sender, principal);
 ```
 
 ## 5. Hệ thống tính lãi và phí như thế nào?
@@ -144,7 +137,8 @@ Ví dụ trong hàm rút khi đáo hạn, trạng thái được cập nhật tr
 
 ```solidity
 dep.status = DepositStatus.Withdrawn;
-vault.payInterest(msg.sender, interest);
+uint256 paidInterest = vault.payAvailableInterest(msg.sender, interest);
+pendingInterest[msg.sender] += interest - paidInterest;
 token.safeTransfer(msg.sender, principal);
 ```
 

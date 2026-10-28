@@ -22,7 +22,7 @@
 
 ## 6. Nếu quỹ không đủ tiền trả lãi thì sao?
 
-> Giao dịch bị hủy và trạng thái khoản gửi không thay đổi. Quản trị viên cần nạp thêm quỹ rồi người dùng thực hiện lại.
+> Nhờ bonus C1, người dùng vẫn nhận lại toàn bộ tiền gốc. Phần lãi vault chưa trả được sẽ trở thành khoản chờ nhận; sau khi quản trị viên nạp thêm quỹ, người dùng bấm nhận lãi mà không phải rút tiền gốc lại.
 
 ## 7. Làm sao ngăn người dùng rút tiền hai lần?
 
@@ -42,7 +42,15 @@
 
 ## 11. Em đã kiểm tra dự án như thế nào?
 
-> Em có 60 bài kiểm tra cho token, khoản gửi, quỹ trả lãi và các trường hợp lỗi. Tất cả đều đạt. Độ bao phủ dòng lệnh là 98,60%.
+> Em có 64 bài kiểm tra cho token, khoản gửi, quỹ trả lãi, hai phần bonus và các trường hợp lỗi. Tất cả đều đạt. Độ bao phủ dòng lệnh là 98,80%.
+
+## Bonus C1 giải quyết vấn đề gì?
+
+> C1 bảo vệ tiền gốc khi quỹ không đủ tiền lãi. Người dùng vẫn nhận lại tiền gốc đúng hạn, còn phần lãi thiếu được ghi thành khoản chờ nhận và có thể nhận sau khi quỹ được nạp.
+
+## Bonus C2 bảo vệ quỹ như thế nào?
+
+> Hệ thống theo dõi tổng lãi đã hứa cho các khoản gửi. Quản trị viên chỉ được rút phần tiền lớn hơn tổng lãi đã cam kết, nên không thể lấy mất tiền đang được dành để trả cho người dùng.
 
 ## 12. Nếu tắt Hardhat node thì chuyện gì xảy ra?
 

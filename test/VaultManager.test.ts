@@ -37,6 +37,8 @@ describe("VaultManager", function () {
     expect(await vault.token()).to.equal(await token.getAddress());
     expect(await vault.feeReceiver()).to.equal(feeReceiver.address);
     expect(await vault.vaultBalance()).to.equal(0n);
+    expect(await vault.totalInterestOwed()).to.equal(0n);
+    expect(await vault.availableLiquidity()).to.equal(0n);
   });
 
   it("Should allow admin to fund the vault", async function () {
@@ -174,6 +176,9 @@ describe("VaultManager", function () {
 
     await vault.setSavingCore(alice.address);
     await vault.fundVault(ethers.parseUnits("1000", 6));
+    await vault.connect(alice).reserveInterest(
+      ethers.parseUnits("50", 6)
+    );
 
     await vault
       .connect(alice)
@@ -186,6 +191,7 @@ describe("VaultManager", function () {
     expect(await vault.vaultBalance()).to.equal(
       ethers.parseUnits("950", 6)
     );
+    expect(await vault.totalInterestOwed()).to.equal(0n);
   });
 
   it("Should reject interest payments when vault is insufficient", async function () {
@@ -194,6 +200,9 @@ describe("VaultManager", function () {
 
     await vault.setSavingCore(alice.address);
     await vault.fundVault(ethers.parseUnits("10", 6));
+    await vault.connect(alice).reserveInterest(
+      ethers.parseUnits("100", 6)
+    );
 
     await expect(
       vault.connect(alice).payInterest(
@@ -201,6 +210,74 @@ describe("VaultManager", function () {
         ethers.parseUnits("100", 6)
       )
     ).to.revert(ethers);
+  });
+
+  it("Should reserve promised interest from admin withdrawal", async function () {
+    const { vault, alice } =
+      await networkHelpers.loadFixture(deployFixture);
+
+    await vault.setSavingCore(alice.address);
+    await vault.fundVault(ethers.parseUnits("1000", 6));
+    await vault.connect(alice).reserveInterest(
+      ethers.parseUnits("600", 6)
+    );
+
+    expect(await vault.availableLiquidity()).to.equal(
+      ethers.parseUnits("400", 6)
+    );
+
+    await expect(
+      vault.withdrawVault(ethers.parseUnits("401", 6))
+    ).to.revert(ethers);
+
+    await vault.withdrawVault(ethers.parseUnits("400", 6));
+    expect(await vault.vaultBalance()).to.equal(
+      ethers.parseUnits("600", 6)
+    );
+  });
+
+  it("Should release interest that is no longer owed", async function () {
+    const { vault, alice } =
+      await networkHelpers.loadFixture(deployFixture);
+
+    await vault.setSavingCore(alice.address);
+    await vault.fundVault(ethers.parseUnits("1000", 6));
+    await vault.connect(alice).reserveInterest(
+      ethers.parseUnits("600", 6)
+    );
+    await vault.connect(alice).releaseInterest(
+      ethers.parseUnits("250", 6)
+    );
+
+    expect(await vault.totalInterestOwed()).to.equal(
+      ethers.parseUnits("350", 6)
+    );
+    expect(await vault.availableLiquidity()).to.equal(
+      ethers.parseUnits("650", 6)
+    );
+  });
+
+  it("Should pay available interest and keep the remainder owed", async function () {
+    const { token, vault, alice, bob } =
+      await networkHelpers.loadFixture(deployFixture);
+
+    await vault.setSavingCore(alice.address);
+    await vault.fundVault(ethers.parseUnits("40", 6));
+    await vault.connect(alice).reserveInterest(
+      ethers.parseUnits("100", 6)
+    );
+
+    await vault.connect(alice).payAvailableInterest(
+      bob.address,
+      ethers.parseUnits("100", 6)
+    );
+
+    expect(await token.balanceOf(bob.address)).to.equal(
+      ethers.parseUnits("40", 6)
+    );
+    expect(await vault.totalInterestOwed()).to.equal(
+      ethers.parseUnits("60", 6)
+    );
   });
 
   it("Should pause and unpause the system", async function () {
@@ -220,6 +297,9 @@ describe("VaultManager", function () {
 
     await vault.setSavingCore(alice.address);
     await vault.fundVault(ethers.parseUnits("1000", 6));
+    await vault.connect(alice).reserveInterest(
+      ethers.parseUnits("50", 6)
+    );
 
     await vault.pause();
 

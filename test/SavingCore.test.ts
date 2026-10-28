@@ -161,7 +161,7 @@ describe("SavingCore", function () {
   });
 
   it("Should open a deposit and mint its NFT", async function () {
-    const { core, token, alice } =
+    const { core, token, vault, alice } =
       await networkHelpers.loadFixture(openedDepositFixture);
 
     expect(await core.ownerOf(1n)).to.equal(alice.address);
@@ -169,6 +169,9 @@ describe("SavingCore", function () {
     expect(await token.balanceOf(await core.getAddress()))
       .to.equal(USDC("1000"));
     expect((await core.deposits(1n)).status).to.equal(0n);
+    expect(await vault.totalInterestOwed()).to.equal(
+      await core.calculateInterest(1n)
+    );
   });
 
   it("Should reject a disabled plan", async function () {
@@ -182,13 +185,14 @@ describe("SavingCore", function () {
   });
 
   it("Should let an existing deposit withdraw after its plan is disabled", async function () {
-    const { core, alice } =
+    const { core, vault, alice } =
       await networkHelpers.loadFixture(openedDepositFixture);
 
     await core.disablePlan(1n);
     await core.connect(alice).earlyWithdraw(1n);
 
     expect((await core.deposits(1n)).status).to.equal(1n);
+    expect(await vault.totalInterestOwed()).to.equal(0n);
   });
 
   it("Should reject deposits below min and above max", async function () {
@@ -485,20 +489,45 @@ describe("SavingCore", function () {
     ).to.revert(ethers);
   });
 
-  it("Should reject interest payout if vault is empty", async function () {
-    const { core, vault, alice } =
+  it("Should return principal and defer interest when vault is empty", async function () {
+    const { core, token, vault, admin, alice } =
+      await networkHelpers.loadFixture(deployFixture);
+
+    const vaultBalance = await vault.vaultBalance();
+    await vault.withdrawVault(vaultBalance);
+    await core.connect(alice).openDeposit(1n, USDC("1000"));
+
+    const interest = await core.calculateInterest(1n);
+    const userBefore = await token.balanceOf(alice.address);
+    await reachMaturity(core);
+    await core.connect(alice).withdrawAtMaturity(1n);
+
+    expect(await token.balanceOf(alice.address)).to.equal(
+      userBefore + USDC("1000")
+    );
+    expect(await core.pendingInterest(alice.address)).to.equal(interest);
+    expect(await vault.totalInterestOwed()).to.equal(interest);
+    expect((await core.deposits(1n)).status).to.equal(1n);
+
+    await vault.connect(admin).fundVault(interest);
+    await core.connect(alice).claimPendingInterest();
+
+    expect(await core.pendingInterest(alice.address)).to.equal(0n);
+    expect(await vault.totalInterestOwed()).to.equal(0n);
+  });
+
+  it("Should block admin from withdrawing promised interest", async function () {
+    const { core, vault } =
       await networkHelpers.loadFixture(openedDepositFixture);
 
-    const balance = await vault.vaultBalance();
-    await vault.withdrawVault(balance);
+    const owed = await core.calculateInterest(1n);
+    const available = await vault.availableLiquidity();
 
-    await reachMaturity(core);
+    await expect(vault.withdrawVault(available + 1n)).to.revert(ethers);
+    await vault.withdrawVault(available);
 
-    await expect(
-      core.connect(alice).withdrawAtMaturity(1n)
-    ).to.revert(ethers);
-
-    expect((await core.deposits(1n)).status).to.equal(0n);
+    expect(await vault.vaultBalance()).to.equal(owed);
+    expect(await vault.totalInterestOwed()).to.equal(owed);
   });
 
   it("Should block withdrawal while paused", async function () {

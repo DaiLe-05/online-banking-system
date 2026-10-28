@@ -12,7 +12,12 @@ interface IInterestVault {
     function token() external view returns (address);
     function feeReceiver() external view returns (address);
     function paused() external view returns (bool);
+    function reserveInterest(uint256 amount) external;
+    function releaseInterest(uint256 amount) external;
     function payInterest(address receiver, uint256 amount) external;
+    function payAvailableInterest(address receiver, uint256 amount)
+        external
+        returns (uint256);
 }
 
 /**
@@ -67,6 +72,7 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
 
     mapping(uint256 => SavingPlan) public plans;
     mapping(uint256 => Deposit) public deposits;
+    mapping(address => uint256) public pendingInterest;
 
     event PlanCreated(
         uint256 indexed planId,
@@ -103,6 +109,18 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
         uint256 indexed newDepositId,
         uint256 newPrincipal,
         uint256 newPlanId
+    );
+
+    event InterestDeferred(
+        uint256 indexed depositId,
+        address indexed owner,
+        uint256 amount
+    );
+
+    event PendingInterestClaimed(
+        address indexed owner,
+        uint256 amount,
+        uint256 remaining
     );
 
     constructor(
@@ -299,6 +317,8 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
 
         _safeMint(receiver, depositId);
 
+        vault.reserveInterest(_calculateInterest(deposits[depositId]));
+
         emit DepositOpened(
             depositId,
             receiver,
@@ -325,6 +345,14 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
 
         Deposit storage dep = deposits[depositId];
 
+        return _calculateInterest(dep);
+    }
+
+    function _calculateInterest(Deposit storage dep)
+        internal
+        view
+        returns (uint256)
+    {
         return (
             dep.principal *
             dep.aprBpsAtOpen *
@@ -354,8 +382,21 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
 
         dep.status = DepositStatus.Withdrawn;
 
-        // Interest comes from the bank vault.
-        vault.payInterest(msg.sender, interest);
+        // C1 pays whatever interest is liquid and records the remainder.
+        uint256 paidInterest = vault.payAvailableInterest(
+            msg.sender,
+            interest
+        );
+
+        uint256 deferredInterest = interest - paidInterest;
+        if (deferredInterest > 0) {
+            pendingInterest[msg.sender] += deferredInterest;
+            emit InterestDeferred(
+                depositId,
+                msg.sender,
+                deferredInterest
+            );
+        }
 
         // Principal comes from SavingCore.
         token.safeTransfer(msg.sender, principal);
@@ -364,8 +405,29 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
             depositId,
             msg.sender,
             principal,
-            interest,
+            paidInterest,
             false
+        );
+    }
+
+    /// @notice Claims previously deferred interest after the vault is funded.
+    function claimPendingInterest()
+        external
+        nonReentrant
+        whenSystemActive
+    {
+        uint256 amount = pendingInterest[msg.sender];
+        require(amount > 0, "No pending interest");
+
+        uint256 paid = vault.payAvailableInterest(msg.sender, amount);
+        require(paid > 0, "Vault empty");
+
+        pendingInterest[msg.sender] = amount - paid;
+
+        emit PendingInterestClaimed(
+            msg.sender,
+            paid,
+            pendingInterest[msg.sender]
         );
     }
 
@@ -394,6 +456,9 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
         uint256 payout = principal - penalty;
 
         dep.status = DepositStatus.Withdrawn;
+
+        // Early exits no longer need their promised maturity interest.
+        vault.releaseInterest(calculateInterest(depositId));
 
         if (penalty > 0) {
             token.safeTransfer(vault.feeReceiver(), penalty);

@@ -20,10 +20,14 @@ contract VaultManager is Ownable, Pausable, ReentrancyGuard {
 
     address public savingCore;
     address public feeReceiver;
+    uint256 public totalInterestOwed;
 
     event VaultFunded(address indexed admin, uint256 amount);
     event VaultWithdrawn(address indexed admin, uint256 amount);
     event InterestPaid(address indexed receiver, uint256 amount);
+    event InterestReserved(uint256 amount, uint256 totalOwed);
+    event InterestReleased(uint256 amount, uint256 totalOwed);
+    event InterestDeferred(address indexed receiver, uint256 amount);
     event FeeReceiverUpdated(address indexed oldReceiver, address indexed newReceiver);
     event SavingCoreConfigured(address indexed savingCore);
 
@@ -72,8 +76,8 @@ contract VaultManager is Ownable, Pausable, ReentrancyGuard {
     }
 
     /**
-     * @notice Admin withdraws available interest liquidity.
-     * @dev Base assignment behavior; no solvency guard (C2 bonus).
+     * @notice Admin withdraws only liquidity that is not promised to users.
+     * @dev C2 solvency guard keeps active and pending interest reserved.
      */
     function withdrawVault(uint256 amount)
         external
@@ -81,11 +85,28 @@ contract VaultManager is Ownable, Pausable, ReentrancyGuard {
         nonReentrant
     {
         require(amount > 0, "Amount must be positive");
-        require(amount <= token.balanceOf(address(this)), "Insufficient vault");
+        require(amount <= availableLiquidity(), "Interest funds reserved");
 
         token.safeTransfer(msg.sender, amount);
 
         emit VaultWithdrawn(msg.sender, amount);
+    }
+
+    /**
+     * @notice Records interest promised by a newly opened or renewed deposit.
+     */
+    function reserveInterest(uint256 amount) external onlySavingCore {
+        totalInterestOwed += amount;
+        emit InterestReserved(amount, totalInterestOwed);
+    }
+
+    /**
+     * @notice Releases promised interest when a deposit exits before maturity.
+     */
+    function releaseInterest(uint256 amount) external onlySavingCore {
+        require(amount <= totalInterestOwed, "Release exceeds owed");
+        totalInterestOwed -= amount;
+        emit InterestReleased(amount, totalInterestOwed);
     }
 
     /**
@@ -98,13 +119,44 @@ contract VaultManager is Ownable, Pausable, ReentrancyGuard {
         nonReentrant
     {
         require(receiver != address(0), "Invalid receiver");
+        require(amount <= totalInterestOwed, "Payment exceeds owed");
         require(amount <= token.balanceOf(address(this)), "Insufficient vault");
+
+        totalInterestOwed -= amount;
 
         if (amount > 0) {
             token.safeTransfer(receiver, amount);
         }
 
         emit InterestPaid(receiver, amount);
+    }
+
+    /**
+     * @notice Pays as much reserved interest as the vault currently holds.
+     * @dev C1 leaves any unpaid amount reserved so it can be claimed later.
+     */
+    function payAvailableInterest(address receiver, uint256 amount)
+        external
+        onlySavingCore
+        whenNotPaused
+        nonReentrant
+        returns (uint256 paid)
+    {
+        require(receiver != address(0), "Invalid receiver");
+        require(amount <= totalInterestOwed, "Payment exceeds owed");
+
+        uint256 balance = token.balanceOf(address(this));
+        paid = amount <= balance ? amount : balance;
+
+        if (paid > 0) {
+            totalInterestOwed -= paid;
+            token.safeTransfer(receiver, paid);
+            emit InterestPaid(receiver, paid);
+        }
+
+        if (paid < amount) {
+            emit InterestDeferred(receiver, amount - paid);
+        }
     }
 
     /**
@@ -141,5 +193,15 @@ contract VaultManager is Ownable, Pausable, ReentrancyGuard {
      */
     function vaultBalance() external view returns (uint256) {
         return token.balanceOf(address(this));
+    }
+
+    /**
+     * @notice Returns the amount the admin may safely withdraw.
+     */
+    function availableLiquidity() public view returns (uint256) {
+        uint256 balance = token.balanceOf(address(this));
+        return balance > totalInterestOwed
+            ? balance - totalInterestOwed
+            : 0;
     }
 }

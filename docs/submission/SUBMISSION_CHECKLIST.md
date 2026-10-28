@@ -9,7 +9,9 @@
 - [x] Các event bắt buộc: `PlanCreated`, `PlanUpdated`, `DepositOpened`, `Withdrawn`, `Renewed`.
 - [x] Giá trị cá nhân A = 4, B = 1 và bốn tham số được ghi ở đầu README.
 - [x] Bảy câu Design Answers nằm trực tiếp trong README, mỗi câu có liên hệ code và test.
-- [x] 60/60 test đạt; line coverage 98,60%, cao hơn yêu cầu 90%.
+- [x] Bonus C1: luôn trả gốc và ghi nhận lãi chờ nhận khi vault thiếu.
+- [x] Bonus C2: khóa phần lãi đã cam kết khỏi quyền rút của admin.
+- [x] 64/64 test đạt; line coverage 98,80%, cao hơn yêu cầu 90%.
 - [x] Frontend React kết nối MetaMask, gửi/rút/gia hạn và chức năng admin.
 - [x] Frontend hiển thị loading, lỗi, thành công và transaction hash.
 - [x] Có hướng dẫn cài đặt, deploy, seed và lưu ý phải deploy lại khi restart node.
@@ -33,4 +35,4 @@ npm run check
 npm run coverage
 ```
 
-Kết quả chuẩn hiện tại: **60 passing**, frontend lint/build thành công, **98,60% line coverage**.
+Kết quả chuẩn hiện tại: **64 passing**, frontend lint/build thành công và **98,80% line coverage**.
