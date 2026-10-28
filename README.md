@@ -205,9 +205,6 @@ Phiên bản trình bày chi tiết kèm đoạn code thật nằm trong [`docs/
 - [Chỉ mục tài liệu](docs/README.md)
 - [Hướng dẫn chạy local](docs/guides/LOCAL_DEVELOPMENT.md)
 - [Design Answers](docs/submission/DESIGN_ANSWERS.md)
-- [Kịch bản video demo](docs/submission/DEMO_SCRIPT.md)
-- [Câu hỏi vấn đáp](docs/submission/VIVA_QUESTIONS.md)
-- [Checklist nộp bài](docs/submission/SUBMISSION_CHECKLIST.md)
 
 ## Lưu ý bảo mật
 

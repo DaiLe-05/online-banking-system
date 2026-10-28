@@ -34,3 +34,9 @@
 
 # Local deployment addresses
 /deployments/localhost.json
+
+# Local AI-agent instructions (not part of the submission)
+/.agents/
+/.claude/
+/AGENTS.md
+/CLAUDE.md
