@@ -106,6 +106,42 @@ describe("SavingCore", function () {
     ).to.revert(ethers);
   });
 
+  it("Should reject invalid plan settings", async function () {
+    const { core } = await networkHelpers.loadFixture(deployFixture);
+
+    await expect(
+      core.createPlan(0n, 300n, 0n, 0n, 350n)
+    ).to.revert(ethers);
+
+    await expect(
+      core.createPlan(90n, 300n, 0n, 0n, 10001n)
+    ).to.revert(ethers);
+
+    await expect(
+      core.createPlan(90n, 300n, USDC("500"), USDC("100"), 350n)
+    ).to.revert(ethers);
+
+    await expect(
+      core.updatePlan(1n, 10001n)
+    ).to.revert(ethers);
+  });
+
+  it("Should emit plan management events", async function () {
+    const { core } = await networkHelpers.loadFixture(deployFixture);
+
+    await expect(
+      core.createPlan(90n, 450n, USDC("100"), 0n, 200n)
+    ).to.emit(core, "PlanCreated").withArgs(2n, 90n, 450n);
+
+    await expect(core.updatePlan(2n, 500n))
+      .to.emit(core, "PlanUpdated")
+      .withArgs(2n, 500n);
+
+    await expect(core.disablePlan(2n))
+      .to.emit(core, "PlanEnabled")
+      .withArgs(2n, false);
+  });
+
   it("Should reject plan creation by non-admin", async function () {
     const { core, alice } = await networkHelpers.loadFixture(deployFixture);
 
@@ -192,6 +228,24 @@ describe("SavingCore", function () {
     await expect(
       core.connect(alice).withdrawAtMaturity(1n)
     ).to.revert(ethers);
+  });
+
+  it("Should allow maturity withdrawal at the exact boundary", async function () {
+    const { core, alice } =
+      await networkHelpers.loadFixture(openedDepositFixture);
+
+    const dep = await core.deposits(1n);
+    await networkHelpers.time.increaseTo(dep.maturityAt);
+
+    await expect(core.connect(alice).withdrawAtMaturity(1n))
+      .to.emit(core, "Withdrawn")
+      .withArgs(
+        1n,
+        alice.address,
+        USDC("1000"),
+        await core.calculateInterest(1n),
+        false
+      );
   });
 
   it("Should pay principal and interest at maturity", async function () {
@@ -333,6 +387,23 @@ describe("SavingCore", function () {
     expect(renewed.tenorDays).to.equal(180n);
     expect(await core.ownerOf(2n)).to.equal(alice.address);
     expect((await core.deposits(1n)).status).to.equal(3n);
+  });
+
+  it("Should enforce the exact grace-period boundary", async function () {
+    const { core, alice, bot } =
+      await networkHelpers.loadFixture(openedDepositFixture);
+
+    const dep = await core.deposits(1n);
+    const boundary = dep.maturityAt + BigInt(3 * DAY);
+
+    await networkHelpers.time.increaseTo(boundary);
+
+    await expect(
+      core.connect(alice).renewDeposit(1n, 1n)
+    ).to.revert(ethers);
+
+    await expect(core.connect(bot).autoRenewDeposit(1n))
+      .to.emit(core, "Renewed");
   });
 
   it("Should reject manual renew after grace period", async function () {

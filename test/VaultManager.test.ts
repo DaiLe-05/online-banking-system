@@ -53,6 +53,25 @@ describe("VaultManager", function () {
     );
   });
 
+  it("Should emit vault administration events", async function () {
+    const { vault, owner, alice, feeReceiver } =
+      await networkHelpers.loadFixture(deployFixture);
+
+    const amount = ethers.parseUnits("1000", 6);
+
+    await expect(vault.fundVault(amount))
+      .to.emit(vault, "VaultFunded")
+      .withArgs(owner.address, amount);
+
+    await expect(vault.setFeeReceiver(alice.address))
+      .to.emit(vault, "FeeReceiverUpdated")
+      .withArgs(feeReceiver.address, alice.address);
+
+    await expect(vault.withdrawVault(amount))
+      .to.emit(vault, "VaultWithdrawn")
+      .withArgs(owner.address, amount);
+  });
+
   it("Should reject funding by non-admin", async function () {
     const { vault, alice } =
       await networkHelpers.loadFixture(deployFixture);
