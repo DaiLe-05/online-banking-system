@@ -2,14 +2,31 @@
 import { network } from "hardhat";
 import { readFileSync } from "node:fs";
 
+function deploymentFile(chainId: number) {
+  if (chainId === 31337) return "deployments/localhost.json";
+  if (chainId === 11155111) return "deployments/sepolia.json";
+  return `deployments/chain-${chainId}.json`;
+}
+
 async function main() {
   const { ethers } = await network.create();
 
-  const deployment = JSON.parse(
-    readFileSync("deployments/localhost.json", "utf8")
-  );
+  const chain = await ethers.provider.getNetwork();
+  const chainId = Number(chain.chainId);
+  const signers = await ethers.getSigners();
+  const admin = signers[0];
+  const alice = signers[1];
 
-  const [admin, alice] = await ethers.getSigners();
+  if (!alice) {
+    throw new Error(
+      "seed.ts needs a second unlocked account and is intended for local use. " +
+      "On Sepolia, connect a user wallet and use the Test mUSDC faucet in the frontend.",
+    );
+  }
+
+  const deployment = JSON.parse(
+    readFileSync(deploymentFile(chainId), "utf8")
+  );
 
   const token = await ethers.getContractAt(
     "MockUSDC",
@@ -27,9 +44,7 @@ async function main() {
   );
 
   // Prevent using a stale deployment file.
-  const chain = await ethers.provider.getNetwork();
-
-  if (Number(chain.chainId) !== deployment.chainId) {
+  if (chainId !== deployment.chainId) {
     throw new Error("Wrong chain ID");
   }
 

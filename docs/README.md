@@ -3,6 +3,7 @@
 ## Hướng dẫn
 
 - [`guides/LOCAL_DEVELOPMENT.md`](guides/LOCAL_DEVELOPMENT.md): cách mở lại node, deploy, seed, chạy frontend và kiểm tra dự án.
+- [`guides/SEPOLIA_DEMO.md`](guides/SEPOLIA_DEMO.md): deploy, kiểm tra và chuẩn bị demo trên Ethereum Sepolia.
 
 ## Tài liệu nộp bài
 

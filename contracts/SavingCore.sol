@@ -32,7 +32,8 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
     uint256 public constant YEAR_SECONDS = 365 days;
 
     // Personal variant: student ID ends in 14.
-    uint256 public constant GRACE_PERIOD = 3 days;
+    uint256 public immutable TIME_UNIT_SECONDS;
+    uint256 public immutable GRACE_PERIOD;
     uint256 public constant DEFAULT_APR_BPS = 300;
     uint256 public constant DEFAULT_PENALTY_BPS = 350;
     uint256 public constant DEFAULT_TENOR_DAYS = 180;
@@ -125,7 +126,8 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
 
     constructor(
         address tokenAddress,
-        address vaultAddress
+        address vaultAddress,
+        uint256 timeUnitSeconds
     ) ERC721("Saving Deposit Certificate", "SDC")
       Ownable(msg.sender)
     {
@@ -135,9 +137,12 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
             IInterestVault(vaultAddress).token() == tokenAddress,
             "Vault token mismatch"
         );
+        require(timeUnitSeconds > 0, "Invalid time unit");
 
         token = IERC20(tokenAddress);
         vault = IInterestVault(vaultAddress);
+        TIME_UNIT_SECONDS = timeUnitSeconds;
+        GRACE_PERIOD = 3 * timeUnitSeconds;
 
         plans[nextPlanId] = SavingPlan({
             tenorDays: DEFAULT_TENOR_DAYS,
@@ -302,7 +307,7 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
         uint256 penaltyBps
     ) internal returns (uint256) {
         uint256 depositId = nextDepositId++;
-        uint256 maturity = block.timestamp + tenorDays * 1 days;
+        uint256 maturity = block.timestamp + tenorDays * TIME_UNIT_SECONDS;
 
         deposits[depositId] = Deposit({
             planId: planId,

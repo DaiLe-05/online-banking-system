@@ -117,6 +117,12 @@ require(
 
 Script tự động quét các khoản đủ điều kiện nằm tại [`scripts/auto-renew.ts`](../../scripts/auto-renew.ts#L64).
 
+Để demo ranh giới này trên Sepolia mà không phải chờ nhiều ngày,
+`TIME_UNIT_SECONDS` được đặt khi deploy: localhost dùng 86.400 giây cho một
+ngày nghiệp vụ, còn Sepolia demo dùng 60 giây. `GRACE_PERIOD` luôn bằng ba lần
+đơn vị đó. Công thức tiền lãi vẫn dùng số ngày nghiệp vụ nên việc nén thời gian
+chỉ phục vụ demo, không làm thay đổi APR của khoản gửi.
+
 ## 7. Làm sao tránh rút hai lần và hạn chế giao dịch gọi lặp nguy hiểm?
 
 Mỗi deposit có trạng thái. Chỉ deposit ở trạng thái `Active` mới được xử lý. Trạng thái được đổi trước khi chuyển token. Ngoài ra các hàm chuyển tiền dùng `nonReentrant` để ngăn một hợp đồng bên ngoài gọi lặp vào giữa giao dịch.

@@ -1,12 +1,13 @@
 # Online Banking System
 
-Ứng dụng gửi tiết kiệm chạy trên blockchain local. Người dùng kết nối MetaMask, chọn gói tiết kiệm, gửi MockUSDC và nhận chứng chỉ cho khoản gửi. Quản trị viên có thể tạo gói mới và nạp quỹ dùng để trả lãi.
+Ứng dụng gửi tiết kiệm chạy trên Hardhat Local hoặc Ethereum Sepolia. Người dùng kết nối MetaMask, chọn gói tiết kiệm, gửi MockUSDC và nhận chứng chỉ cho khoản gửi. Quản trị viên có thể tạo gói mới và nạp quỹ dùng để trả lãi.
 
 ## Chức năng đã hoàn thành
 
 ### Người dùng
 
 - Kết nối MetaMask với mạng Hardhat Local.
+- Chuyển đổi giữa Hardhat Local và Ethereum Sepolia.
 - Xem số dư, quỹ trả lãi và các gói tiết kiệm.
 - Gửi MockUSDC và nhận chứng chỉ NFT.
 - Xem tiền gốc, lãi dự kiến, ngày đáo hạn và trạng thái.
@@ -16,6 +17,7 @@
 - Gia hạn thủ công hoặc tự động gia hạn.
 - Xem và nhận phần lãi đang chờ thanh toán.
 - Xem và sao chép mã giao dịch sau khi thao tác thành công.
+- Mint mUSDC thử nghiệm và mở giao dịch Sepolia trên Etherscan.
 
 ### Quản trị viên
 
@@ -71,7 +73,7 @@ scripts/         Deploy, dữ liệu mẫu và auto-renew
 test/            Các bài kiểm tra tự động
 frontend/        Giao diện React và MetaMask
 docs/            Hướng dẫn, Design Answers và tài liệu báo cáo
-deployments/     Địa chỉ hợp đồng của lần chạy local hiện tại
+deployments/     Địa chỉ hợp đồng công khai của mạng Sepolia
 ```
 
 - `MockUSDC`: đồng tiền mô phỏng dùng để kiểm thử.
@@ -83,7 +85,7 @@ deployments/     Địa chỉ hợp đồng của lần chạy local hiện tạ
 Yêu cầu Node.js và MetaMask.
 
 ```powershell
-git clone <repository-url>
+git clone https://github.com/DaiLe-05/online-banking-system.git
 cd online-banking-system
 npm install
 cd frontend
@@ -128,10 +130,58 @@ Chỉ nhập tài khoản kiểm thử do Hardhat node tạo. Không dùng ví c
 
 > Blockchain local không lưu dữ liệu sau khi tắt node. Mỗi lần khởi động lại node, phải chạy lại cả `deploy.ts` và `seed.ts`.
 
+## Chạy trên Ethereum Sepolia
+
+Dự án hỗ trợ Sepolia chain ID `11155111`. Dùng một ví thử nghiệm riêng có
+Sepolia ETH; không sử dụng ví chính hoặc commit private key.
+
+Lưu RPC URL và private key trong Hardhat encrypted keystore:
+
+```powershell
+npx hardhat keystore set SEPOLIA_RPC_URL
+npx hardhat keystore set SEPOLIA_PRIVATE_KEY
+```
+
+Deploy bằng production compiler profile:
+
+```powershell
+npx hardhat --network sepolia --build-profile production run scripts/deploy.ts
+```
+
+Script tạo `deployments/sepolia.json` và tự ghi các địa chỉ công khai vào
+`frontend/.env.local`. Nếu Vite đang chạy, phải khởi động lại rồi chọn
+**Sepolia** trên thanh điều hướng.
+
+Deployment Sepolia hiện tại:
+
+| Hợp đồng | Địa chỉ |
+|---|---|
+| MockUSDC | [`0x9e4C...11cF`](https://sepolia.etherscan.io/address/0x9e4CcF0399d91c13ab30e49a0eeE0fa0403311cF) |
+| VaultManager | [`0x4E70...3656`](https://sepolia.etherscan.io/address/0x4E70b11E38b91F97d8dB8F09bc64E1BbFD143656) |
+| SavingCore | [`0xc6A3...1a62`](https://sepolia.etherscan.io/address/0xc6A3278C4Afec47BD02ff83BA7CaCE1CbF171a62) |
+
+Các địa chỉ này cũng nằm trong `deployments/sepolia.json`. Muốn dùng ngay
+deployment đã công bố mà không deploy lại, sao chép file môi trường mẫu rồi
+khởi động frontend:
+
+```powershell
+Copy-Item frontend/.env.example frontend/.env.local
+cd frontend
+npm run dev
+```
+
+Sepolia dùng thời gian block thật nên không chạy được `evm_increaseTime`. Để
+demo ngay trên mạng công khai, bản deploy Sepolia nén thời gian: **1 ngày của
+gói = 60 giây** và grace period 3 ngày = 180 giây. Số ngày dùng để tính lãi
+vẫn giữ nguyên theo nghiệp vụ. Localhost vẫn dùng 1 ngày = 86.400 giây.
+Hướng dẫn demo đáo hạn, gia hạn, auto-renew, C1 và C2 nằm tại
+[`docs/guides/SEPOLIA_DEMO.md`](docs/guides/SEPOLIA_DEMO.md).
+
 ## Chạy auto-renew
 
 ```powershell
 npx hardhat run scripts/auto-renew.ts --network localhost
+npx hardhat --network sepolia --build-profile production run scripts/auto-renew.ts
 ```
 
 ## Kiểm tra dự án
@@ -145,8 +195,8 @@ npx hardhat test --coverage
 
 Kết quả gần nhất:
 
-- **64/64 bài kiểm tra nghiệp vụ đạt**.
-- Coverage: **98,80% dòng lệnh**, **98,81% câu lệnh**.
+- **65/65 bài kiểm tra nghiệp vụ đạt**.
+- Coverage toàn bộ hợp đồng: **98,81% dòng lệnh**, **98,83% câu lệnh**.
 
 ### Frontend
 
@@ -204,14 +254,16 @@ Phiên bản trình bày chi tiết kèm đoạn code thật nằm trong [`docs/
 
 - [Chỉ mục tài liệu](docs/README.md)
 - [Hướng dẫn chạy local](docs/guides/LOCAL_DEVELOPMENT.md)
+- [Hướng dẫn deploy và demo Sepolia](docs/guides/SEPOLIA_DEMO.md)
 - [Design Answers](docs/submission/DESIGN_ANSWERS.md)
 
 ## Lưu ý bảo mật
 
-- Đây là dự án học tập và demo local, chưa dùng cho tiền thật.
+- Đây là dự án học tập chạy trên Hardhat Local và Sepolia testnet, chưa dùng cho tiền thật.
 - Không commit `.env`, private key, seed phrase hoặc thông tin đăng nhập.
 - Không sử dụng tài khoản MetaMask chính với dự án.
 - Địa chỉ trong `deployments/localhost.json` chỉ có giá trị với lần chạy local hiện tại.
+- Địa chỉ Sepolia là thông tin công khai; private key và RPC URL chỉ được lưu trong Hardhat encrypted keystore.
 
 ## Giới hạn hiện tại
 

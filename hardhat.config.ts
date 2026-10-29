@@ -11,6 +11,7 @@ export default defineConfig({
       production: {
         version: "0.8.34",
         settings: {
+          evmVersion: "cancun",
           optimizer: {
             enabled: true,
             runs: 200,
@@ -33,6 +34,7 @@ export default defineConfig({
       chainType: "l1",
       url: configVariable("SEPOLIA_RPC_URL"),
       accounts: [configVariable("SEPOLIA_PRIVATE_KEY")],
+      gasMultiplier: 1.2,
     },
   },
 });

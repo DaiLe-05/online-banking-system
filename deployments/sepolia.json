@@ -1,0 +1,19 @@
+{
+  "chainId": 11155111,
+  "network": "sepolia",
+  "timeUnitSeconds": 60,
+  "admin": "0xf6F7914e5Ff4d906cac1f933a908BedB2686d22c",
+  "demoUser": "0xf6F7914e5Ff4d906cac1f933a908BedB2686d22c",
+  "contracts": {
+    "MockUSDC": "0x9e4CcF0399d91c13ab30e49a0eeE0fa0403311cF",
+    "VaultManager": "0x4E70b11E38b91F97d8dB8F09bc64E1BbFD143656",
+    "SavingCore": "0xc6A3278C4Afec47BD02ff83BA7CaCE1CbF171a62"
+  },
+  "personalVariant": {
+    "studentIdSuffix": "14",
+    "gracePeriodDays": 3,
+    "aprBps": 300,
+    "penaltyBps": 350,
+    "tenorDays": 180
+  }
+}

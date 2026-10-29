@@ -8,7 +8,7 @@ describe("SavingCore", function () {
   const USDC = (amount: string) => ethers.parseUnits(amount, 6);
   const DAY = 24 * 60 * 60;
 
-  async function deployFixture() {
+  async function deployWithTimeUnit(timeUnitSeconds: number) {
     const [admin, alice, bob, feeReceiver, bot] =
       await ethers.getSigners();
 
@@ -24,6 +24,7 @@ describe("SavingCore", function () {
     const core = await ethers.deployContract("SavingCore", [
       await token.getAddress(),
       await vault.getAddress(),
+      timeUnitSeconds,
     ]);
     await core.waitForDeployment();
 
@@ -48,6 +49,10 @@ describe("SavingCore", function () {
     return { token, vault, core, admin, alice, bob, feeReceiver, bot };
   }
 
+  async function deployFixture() {
+    return deployWithTimeUnit(DAY);
+  }
+
   async function openedDepositFixture() {
     const fixture = await deployFixture();
 
@@ -68,9 +73,23 @@ describe("SavingCore", function () {
     const { core } = await networkHelpers.loadFixture(deployFixture);
 
     expect(await core.GRACE_PERIOD()).to.equal(BigInt(3 * DAY));
+    expect(await core.TIME_UNIT_SECONDS()).to.equal(BigInt(DAY));
     expect(await core.DEFAULT_APR_BPS()).to.equal(300n);
     expect(await core.DEFAULT_PENALTY_BPS()).to.equal(350n);
     expect(await core.DEFAULT_TENOR_DAYS()).to.equal(180n);
+  });
+
+  it("Should support compressed timing for public testnet demos", async function () {
+    const { core, alice } = await deployWithTimeUnit(60);
+
+    await core.createPlan(1n, 300n, 0n, 0n, 350n);
+    await core.connect(alice).openDeposit(2n, USDC("100"));
+
+    const deposit = await core.deposits(1n);
+
+    expect(await core.TIME_UNIT_SECONDS()).to.equal(60n);
+    expect(await core.GRACE_PERIOD()).to.equal(180n);
+    expect(deposit.maturityAt - deposit.startAt).to.equal(60n);
   });
 
   it("Should initialize the default plan correctly", async function () {

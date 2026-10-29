@@ -2,16 +2,22 @@
 import { network } from "hardhat";
 import { readFileSync } from "node:fs";
 
+function deploymentFile(chainId: number) {
+  if (chainId === 31337) return "deployments/localhost.json";
+  if (chainId === 11155111) return "deployments/sepolia.json";
+  return `deployments/chain-${chainId}.json`;
+}
+
 async function main() {
   const { ethers } = await network.create();
 
+  const chain = await ethers.provider.getNetwork();
+  const chainId = Number(chain.chainId);
   const deployment = JSON.parse(
-    readFileSync("deployments/localhost.json", "utf8")
+    readFileSync(deploymentFile(chainId), "utf8")
   );
 
-  const chain = await ethers.provider.getNetwork();
-
-  if (Number(chain.chainId) !== deployment.chainId) {
+  if (chainId !== deployment.chainId) {
     throw new Error("Wrong blockchain network");
   }
 
@@ -41,6 +47,7 @@ async function main() {
   }
 
   const grace = await core.GRACE_PERIOD();
+  const timeUnit = await core.TIME_UNIT_SECONDS();
   const nextId = await core.nextDepositId();
   const latestBlock = await ethers.provider.getBlock("latest");
 
@@ -55,7 +62,8 @@ async function main() {
   console.log("================================");
   console.log("Chain ID:", chain.chainId.toString());
   console.log("Current timestamp:", now.toString());
-  console.log("Grace period:", (grace / 86400n).toString(), "days");
+  console.log("Logical day:", timeUnit.toString(), "seconds");
+  console.log("Grace period:", grace.toString(), "seconds");
   console.log("Deposits to scan:", (nextId - 1n).toString());
 
   let renewed = 0;
