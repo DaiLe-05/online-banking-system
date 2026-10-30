@@ -2,6 +2,10 @@
 
 Ứng dụng gửi tiết kiệm chạy trên Hardhat Local hoặc Ethereum Sepolia. Người dùng kết nối MetaMask, chọn gói tiết kiệm, gửi MockUSDC và nhận chứng chỉ cho khoản gửi. Quản trị viên có thể tạo gói mới và nạp quỹ dùng để trả lãi.
 
+## Video demo
+
+https://drive.google.com/drive/folders/1f4QySe6qnI7iBiPrnhE23MkOJl9UJyF_?usp=drive_link
+
 ## Chức năng đã hoàn thành
 
 ### Người dùng
