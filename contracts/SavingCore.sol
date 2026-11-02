@@ -51,6 +51,18 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
         AutoRenewed
     }
 
+    enum RenewalKind {
+        None,
+        Manual,
+        Automatic
+    }
+
+    enum WithdrawalKind {
+        None,
+        Early,
+        AtMaturity
+    }
+
     struct SavingPlan {
         uint256 tenorDays;
         uint256 aprBps;
@@ -74,6 +86,10 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
     mapping(uint256 => SavingPlan) public plans;
     mapping(uint256 => Deposit) public deposits;
     mapping(address => uint256) public pendingInterest;
+    mapping(uint256 => uint256) public renewedFrom;
+    mapping(uint256 => uint256) public renewedTo;
+    mapping(uint256 => RenewalKind) public renewalKind;
+    mapping(uint256 => WithdrawalKind) public withdrawalKind;
 
     event PlanCreated(
         uint256 indexed planId,
@@ -386,6 +402,7 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
         uint256 interest = calculateInterest(depositId);
 
         dep.status = DepositStatus.Withdrawn;
+        withdrawalKind[depositId] = WithdrawalKind.AtMaturity;
 
         // C1 pays whatever interest is liquid and records the remainder.
         uint256 paidInterest = vault.payAvailableInterest(
@@ -461,6 +478,7 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
         uint256 payout = principal - penalty;
 
         dep.status = DepositStatus.Withdrawn;
+        withdrawalKind[depositId] = WithdrawalKind.Early;
 
         // Early exits no longer need their promised maturity interest.
         vault.releaseInterest(calculateInterest(depositId));
@@ -541,6 +559,10 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
             newPlan.earlyWithdrawPenaltyBps
         );
 
+        renewedFrom[newDepositId] = depositId;
+        renewedTo[depositId] = newDepositId;
+        renewalKind[newDepositId] = RenewalKind.Manual;
+
         emit Renewed(
             depositId,
             newDepositId,
@@ -596,6 +618,10 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
             penaltyBps
         );
 
+        renewedFrom[newDepositId] = depositId;
+        renewedTo[depositId] = newDepositId;
+        renewalKind[newDepositId] = RenewalKind.Automatic;
+
         emit Renewed(
             depositId,
             newDepositId,
@@ -604,5 +630,28 @@ contract SavingCore is ERC721, Ownable, ReentrancyGuard {
         );
 
         return newDepositId;
+    }
+
+    // ------------------------------------------------------------
+    // CERTIFICATE TRANSFERS
+    // ------------------------------------------------------------
+
+    /// @dev Only an active savings certificate can be transferred.
+    ///      Minting remains allowed so renewals can create replacement NFTs.
+    function _update(
+        address to,
+        uint256 tokenId,
+        address auth
+    ) internal override returns (address) {
+        address from = _ownerOf(tokenId);
+
+        if (from != address(0) && to != address(0)) {
+            require(
+                deposits[tokenId].status == DepositStatus.Active,
+                "Inactive certificate"
+            );
+        }
+
+        return super._update(to, tokenId, auth);
     }
 }

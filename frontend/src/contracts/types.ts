@@ -37,5 +37,9 @@ export type Deposit = {
   penalty: number
   status: number
   interest: bigint
+  renewedFrom: number
+  renewedTo: number
+  renewalKind: number
+  withdrawalKind: number
 }
 

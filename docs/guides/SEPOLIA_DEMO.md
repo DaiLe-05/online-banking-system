@@ -146,15 +146,24 @@ seconds without any privileged time-changing function.
 
 ### After about 240 seconds from C's deposit
 
-C matures after about 60 seconds, then its 180-second grace period ends. Run
-the permissionless bot:
+C matures after about 60 seconds, then its 180-second grace period ends. For a
+smooth demo, start the frontend and the permissionless watcher together before
+opening the deposits:
 
 ```powershell
-npx hardhat --network sepolia --build-profile production run scripts/auto-renew.ts
+cd online-banking-system
+npm run dev:sepolia
 ```
 
-Refresh the frontend. C becomes `AUTO RENEWED` and a replacement certificate
-appears for the same owner.
+At the Hardhat keystore prompt, type the keystore password and press Enter.
+Password characters are intentionally invisible. The launcher waits until the
+watcher is ready before starting Vite, so the watcher has exclusive access to
+the password prompt. If Vite reports that port 5173 is already in use, stop the
+older frontend with `Ctrl+C` and run this command again.
+
+The watcher scans every 15 seconds. Refresh the frontend after it reports a
+successful transaction. C becomes `AUTO RENEWED` and a replacement
+certificate appears for the same owner.
 
 Exact eligibility depends on the timestamp of the latest mined block. If a
 transaction says the grace period has not ended, wait for the next Sepolia

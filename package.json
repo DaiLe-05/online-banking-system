@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "dev:sepolia": "node scripts/dev-sepolia.mjs",
     "test": "hardhat test",
     "coverage": "hardhat test --coverage",
     "frontend:lint": "npm --prefix frontend run lint",

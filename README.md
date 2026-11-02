@@ -160,9 +160,9 @@ Deployment Sepolia hiện tại:
 
 | Hợp đồng | Địa chỉ |
 |---|---|
-| MockUSDC | [`0x9e4C...11cF`](https://sepolia.etherscan.io/address/0x9e4CcF0399d91c13ab30e49a0eeE0fa0403311cF) |
-| VaultManager | [`0x4E70...3656`](https://sepolia.etherscan.io/address/0x4E70b11E38b91F97d8dB8F09bc64E1BbFD143656) |
-| SavingCore | [`0xc6A3...1a62`](https://sepolia.etherscan.io/address/0xc6A3278C4Afec47BD02ff83BA7CaCE1CbF171a62) |
+| MockUSDC | [`0xE52A...A373`](https://sepolia.etherscan.io/address/0xE52A9E41B2a76d8b101448eB20d521e70f03A373) |
+| VaultManager | [`0xffCd...8871`](https://sepolia.etherscan.io/address/0xffCd7A4B905204514D3E8A81D87547499a7C8871) |
+| SavingCore | [`0x97a2...8681`](https://sepolia.etherscan.io/address/0x97a2716Ba2ec46648346d634c654439A5f868681) |
 
 Các địa chỉ này cũng nằm trong `deployments/sepolia.json`. Muốn dùng ngay
 deployment đã công bố mà không deploy lại, sao chép file môi trường mẫu rồi
@@ -183,6 +183,47 @@ Hướng dẫn demo đáo hạn, gia hạn, auto-renew, C1 và C2 nằm tại
 
 ## Chạy auto-renew
 
+Khởi động frontend Sepolia và bot theo dõi tự động bằng một lệnh từ thư mục
+gốc của dự án:
+
+```powershell
+cd online-banking-system
+npm run dev:sepolia
+```
+
+Khi terminal hiện dòng sau, nhập mật khẩu của Hardhat keystore rồi nhấn
+`Enter`:
+
+```text
+[hardhat-keystore] Enter the password:
+```
+
+Trong lúc nhập, terminal **không hiển thị ký tự, dấu chấm hoặc dấu `*`**. Đây
+là hành vi bảo mật bình thường, không phải lỗi. Không nhập RPC URL, private key
+hoặc mật khẩu MetaMask tại bước này.
+
+Chương trình sẽ khởi động theo thứ tự:
+
+1. Bot auto-renew nhận mật khẩu và kết nối Sepolia.
+2. Khi terminal báo `Auto-renew watcher started`, frontend Vite tự khởi động.
+3. Mở địa chỉ Vite được in trong terminal, thông thường là
+   `http://localhost:5173`.
+
+Bot quét mỗi 15 giây và tự gọi `autoRenewDeposit` khi một chứng chỉ đã hết
+grace period. Giữ terminal này mở trong lúc chạy ứng dụng; nhấn `Ctrl+C` để
+dừng cả frontend và bot.
+
+Nếu Vite báo `Port 5173 is in use, trying another one`, một frontend cũ vẫn
+đang chạy. Nhấn `Ctrl+C` trong terminal cũ để dừng nó, sau đó chạy lại
+`npm run dev:sepolia`. Có thể dùng cổng mới như `5174`, nhưng nên chỉ giữ một
+frontend để tránh mở nhầm phiên bản.
+
+Nếu nhập sai mật khẩu, chạy lại `npm run dev:sepolia` và nhập đúng mật khẩu
+đã dùng khi tạo Hardhat keystore. Không chia sẻ hoặc commit mật khẩu, RPC URL
+và private key lên GitHub.
+
+Nếu chỉ muốn chạy riêng bot theo dõi:
+
 ```powershell
 npx hardhat run scripts/auto-renew.ts --network localhost
 npx hardhat --network sepolia --build-profile production run scripts/auto-renew.ts
@@ -199,7 +240,7 @@ npx hardhat test --coverage
 
 Kết quả gần nhất:
 
-- **65/65 bài kiểm tra nghiệp vụ đạt**.
+- **66/66 bài kiểm tra nghiệp vụ đạt**.
 - Coverage toàn bộ hợp đồng: **98,81% dòng lệnh**, **98,83% câu lệnh**.
 
 ### Frontend
