@@ -1,5 +1,7 @@
 # Online Banking System
 
+[![CI](https://github.com/DaiLe-05/online-banking-system/actions/workflows/ci.yml/badge.svg)](https://github.com/DaiLe-05/online-banking-system/actions/workflows/ci.yml)
+
 Ứng dụng gửi tiết kiệm chạy trên Hardhat Local hoặc Ethereum Sepolia. Người dùng kết nối MetaMask, chọn gói tiết kiệm, gửi MockUSDC và nhận chứng chỉ cho khoản gửi. Quản trị viên có thể tạo gói mới và nạp quỹ dùng để trả lãi.
 
 ## Video demo
@@ -15,6 +17,7 @@ https://drive.google.com/drive/folders/1f4QySe6qnI7iBiPrnhE23MkOJl9UJyF_?usp=dri
 - Xem số dư, quỹ trả lãi và các gói tiết kiệm.
 - Gửi MockUSDC và nhận chứng chỉ NFT.
 - Xem tiền gốc, lãi dự kiến, ngày đáo hạn và trạng thái.
+- Lọc chứng chỉ theo trạng thái: đang hoạt động, đã rút và đã gia hạn.
 - Rút trước hạn và tự động trừ phí.
 - Rút tiền gốc cùng tiền lãi khi đến hạn.
 - Luôn nhận lại tiền gốc khi đáo hạn; lãi thiếu được ghi nhận để nhận sau.
@@ -76,6 +79,8 @@ contracts/       Ba smart contract chính
 scripts/         Deploy, dữ liệu mẫu và auto-renew
 test/            Các bài kiểm tra tự động
 frontend/        Giao diện React và MetaMask
+  src/components Các khối giao diện độc lập
+  src/lib/       Công thức và quy tắc hiển thị có unit test
 docs/            Hướng dẫn, Design Answers và tài liệu báo cáo
 deployments/     Địa chỉ hợp đồng công khai của mạng Sepolia
 ```
@@ -181,6 +186,12 @@ vẫn giữ nguyên theo nghiệp vụ. Localhost vẫn dùng 1 ngày = 86.400 g
 Hướng dẫn demo đáo hạn, gia hạn, auto-renew, C1 và C2 nằm tại
 [`docs/guides/SEPOLIA_DEMO.md`](docs/guides/SEPOLIA_DEMO.md).
 
+### Bằng chứng hoạt động trên Sepolia
+
+- Ba liên kết Etherscan trong bảng trên công khai bytecode, lịch sử giao dịch và event của từng hợp đồng.
+- Mỗi thao tác thành công trên frontend hiển thị transaction hash, nút sao chép và liên kết **View on explorer**.
+- `deployments/sepolia.json` là nguồn địa chỉ công khai; private key và RPC URL chỉ nằm trong Hardhat encrypted keystore và không được commit.
+
 ## Chạy auto-renew
 
 Khởi động frontend Sepolia và bot theo dõi tự động bằng một lệnh từ thư mục
@@ -240,18 +251,27 @@ npx hardhat test --coverage
 
 Kết quả gần nhất:
 
-- **66/66 bài kiểm tra nghiệp vụ đạt**.
+- **69/69 bài kiểm tra smart contract và watcher đạt**.
 - Coverage toàn bộ hợp đồng: **98,81% dòng lệnh**, **98,83% câu lệnh**.
 
 ### Frontend
 
 ```powershell
 cd frontend
+npm run test
 npm run lint
 npm run build
 ```
 
-Cả kiểm tra mã và build production hiện đều thành công. Cảnh báo gói JavaScript lớn hơn 500 kB không làm build thất bại.
+Frontend có **5/5 unit test đạt** cho công thức lãi, phí rút sớm, trạng thái, nguồn gốc và bộ lọc chứng chỉ. Cả lint và build production hiện đều thành công. Cảnh báo gói JavaScript lớn hơn 500 kB không làm build thất bại.
+
+Chạy toàn bộ kiểm tra của dự án bằng một lệnh:
+
+```powershell
+npm run check
+```
+
+GitHub Actions cũng tự chạy cùng các nhóm kiểm tra khi có commit mới trên `main`/`master` hoặc khi mở pull request. Trang **Actions** hiển thị riêng kết quả **Smart contracts and watcher** và **Frontend tests, lint and build**, nên có thể xác định nhanh phần nào gặp lỗi. Workflow cũng có nút **Run workflow** để chạy thủ công khi cần.
 
 ## Design Answers
 
@@ -315,5 +335,6 @@ Phiên bản trình bày chi tiết kèm đoạn code thật nằm trong [`docs/
 - C1 bảo vệ tiền gốc nhưng phần lãi còn thiếu vẫn phụ thuộc vào việc vault được nạp thêm.
 - C2 ngăn admin rút phần lãi đã cam kết, nhưng không bắt buộc vault phải có đủ 100% tiền ngay lúc mở deposit; nếu tổng cam kết lớn hơn số dư, thanh khoản an toàn của admin bằng 0.
 - Auto-renew cần một script hoặc người bên ngoài gọi; chưa có dịch vụ bot chạy liên tục và chưa có phí khuyến khích người gọi.
+- NFT hiện thể hiện quyền sở hữu chứng chỉ và vòng đời khoản gửi nhưng chưa có metadata hình ảnh riêng; bổ sung metadata sẽ làm tăng bytecode và yêu cầu deploy lại hợp đồng Sepolia.
 - Dữ liệu Hardhat Local bị xóa khi node dừng, vì vậy phải deploy và seed lại.
 - Frontend build thành công nhưng hiện vẫn có cảnh báo gói JavaScript lớn hơn 500 kB.

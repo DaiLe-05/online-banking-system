@@ -1,17 +1,12 @@
 
 import { network } from "hardhat";
 import { readFileSync } from "node:fs";
+import { deploymentFileForChain, isAutoRenewEligible } from "./auto-renew-policy.js";
 
 const POLL_INTERVAL_MS = 15_000;
 
 function wait(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
-
-function deploymentFile(chainId: number) {
-  if (chainId === 31337) return "deployments/localhost.json";
-  if (chainId === 11155111) return "deployments/sepolia.json";
-  return `deployments/chain-${chainId}.json`;
 }
 
 async function main() {
@@ -20,7 +15,7 @@ async function main() {
   const chain = await ethers.provider.getNetwork();
   const chainId = Number(chain.chainId);
   const deployment = JSON.parse(
-    readFileSync(deploymentFile(chainId), "utf8")
+    readFileSync(deploymentFileForChain(chainId), "utf8")
   );
 
   if (chainId !== deployment.chainId) {
@@ -83,15 +78,7 @@ async function main() {
     for (let id = 1n; id < nextId; id++) {
       const deposit = await core.deposits(id);
 
-      // 0 = Active
-      if (deposit.status !== 0n) {
-        skipped++;
-        continue;
-      }
-
-      const renewalTime = deposit.maturityAt + grace;
-
-      if (now < renewalTime) {
+      if (!isAutoRenewEligible(deposit, now, grace)) {
         skipped++;
         continue;
       }

@@ -7,8 +7,9 @@
     "test": "hardhat test",
     "coverage": "hardhat test --coverage",
     "frontend:lint": "npm --prefix frontend run lint",
+    "frontend:test": "npm --prefix frontend run test",
     "frontend:build": "npm --prefix frontend run build",
-    "check": "npm run test && npm run frontend:lint && npm run frontend:build"
+    "check": "npm run test && npm run frontend:test && npm run frontend:lint && npm run frontend:build"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "^4.2.1",
