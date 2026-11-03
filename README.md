@@ -157,9 +157,25 @@ Deploy bằng production compiler profile:
 npx hardhat --network sepolia --build-profile production run scripts/deploy.ts
 ```
 
-Script tạo `deployments/sepolia.json` và tự ghi các địa chỉ công khai vào
-`frontend/.env.local`. Nếu Vite đang chạy, phải khởi động lại rồi chọn
-**Sepolia** trên thanh điều hướng.
+Lệnh này an toàn để chạy lại. Nếu deployment hoàn chỉnh vẫn tồn tại, script chỉ
+kiểm tra địa chỉ và đồng bộ `frontend/.env.local`, không gửi giao dịch hoặc nạp
+thêm quỹ. Nếu lần trước bị ngắt giữa chừng, script đọc file checkpoint và tiếp
+tục từ hợp đồng chưa hoàn thành, nhờ đó tránh tốn SepoliaETH để deploy lại các
+hợp đồng đã thành công.
+
+Chỉ khi thật sự muốn tạo một bộ hợp đồng mới hoàn toàn, bật biến môi trường
+trong đúng cửa sổ PowerShell đang chạy lệnh:
+
+```powershell
+$env:DEPLOY_FRESH = "1"
+npx hardhat --network sepolia --build-profile production run scripts/deploy.ts
+Remove-Item Env:DEPLOY_FRESH
+```
+
+Địa chỉ cũ chỉ bị thay trong `deployments/sepolia.json` sau khi bộ hợp đồng mới
+được deploy và kiểm tra thành công. Checkpoint tạm nằm trong `deployments` và
+được Git bỏ qua. Nếu Vite đang chạy, phải khởi động lại rồi chọn **Sepolia**
+trên thanh điều hướng.
 
 Deployment Sepolia hiện tại:
 

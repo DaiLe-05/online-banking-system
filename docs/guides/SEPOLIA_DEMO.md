@@ -52,6 +52,22 @@ The command:
 - writes public addresses to `deployments/sepolia.json`;
 - writes Vite addresses to the ignored `frontend/.env.local` file.
 
+The command is resumable and safe to repeat. A completed deployment is reused
+without sending transactions or changing the vault. If RPC, nonce or gas issues
+interrupt a new deployment, rerun the same command; it resumes from the ignored
+`deployments/<network>.in-progress.json` checkpoint.
+
+To explicitly replace a working deployment with a completely new one:
+
+```powershell
+$env:DEPLOY_FRESH = "1"
+npx hardhat --network sepolia --build-profile production run scripts/deploy.ts
+Remove-Item Env:DEPLOY_FRESH
+```
+
+The published deployment file is replaced only after all deployment and
+verification steps succeed.
+
 The private key is never written by the deployment script.
 
 The repository also publishes the latest public contract addresses in

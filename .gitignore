@@ -34,6 +34,7 @@
 
 # Local deployment addresses
 /deployments/localhost.json
+/deployments/*.in-progress.json
 
 # Local AI-agent instructions (not part of the submission)
 /.agents/
